@@ -36,7 +36,8 @@ type Client struct {
 }
 
 // NewClient makes a client. With no options it reads the key from HAAU3_API_KEY, and calls
-// https://api.haau3.com with a 65-second timeout per attempt and one retry. It returns an error
+// HAAU3_BASE_URL when it is set, or else https://api.haau3.com, with a 65-second timeout per
+// attempt and one retry. It returns an error
 // of KindNotSent when there is no key, or an option is not one a client takes.
 func NewClient(opts ...Option) (*Client, error) {
 	if goos == "js" {
@@ -56,11 +57,14 @@ func NewClient(opts ...Option) (*Client, error) {
 	if key == "" {
 		return nil, notSent("No API key: pass haau3.WithAPIKey, or set HAAU3_API_KEY.")
 	}
-	base := defaultBaseURL
-	if s.baseURL != nil {
-		base = *s.baseURL
+	base, source := defaultBaseURL, "WithBaseURL"
+	if fromEnv := os.Getenv("HAAU3_BASE_URL"); fromEnv != "" {
+		base, source = fromEnv, "HAAU3_BASE_URL"
 	}
-	checked, err := checkedBaseURL(base)
+	if s.baseURL != nil {
+		base, source = *s.baseURL, "WithBaseURL"
+	}
+	checked, err := checkedBaseURL(base, source)
 	if err != nil {
 		return nil, err
 	}

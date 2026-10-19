@@ -152,7 +152,7 @@ func fillPath(template string, values []string) (string, error) {
 
 // checkedBaseURL is the base URL without trailing slashes, refused unless it is an http or https
 // URL with a host.
-func checkedBaseURL(base string) (string, error) {
+func checkedBaseURL(base, source string) (string, error) {
 	stripped := strings.TrimRight(base, "/")
 	u, err := url.Parse(stripped)
 	scheme := ""
@@ -160,11 +160,11 @@ func checkedBaseURL(base string) (string, error) {
 		scheme = strings.ToLower(u.Scheme)
 	}
 	if err != nil || (scheme != "http" && scheme != "https") || u.Hostname() == "" || u.RawQuery != "" || u.Fragment != "" {
-		return "", notSent(fmt.Sprintf("WithBaseURL takes an http or https URL with a host, such as https://api.haau3.com: %q is not one.", base))
+		return "", notSent(fmt.Sprintf("%s takes an http or https URL with a host, such as https://api.haau3.com: %q is not one.", source, base))
 	}
 	if p := u.Port(); p != "" {
 		if _, err := strconv.ParseUint(p, 10, 16); err != nil {
-			return "", notSent(fmt.Sprintf("WithBaseURL takes an http or https URL with a host, such as https://api.haau3.com: %q is not one.", base))
+			return "", notSent(fmt.Sprintf("%s takes an http or https URL with a host, such as https://api.haau3.com: %q is not one.", source, base))
 		}
 	}
 	return stripped, nil
