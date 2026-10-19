@@ -29,7 +29,13 @@ FHIR R4 (4.0.1), pinned by its sha256. Never edit them by hand:
 - `types_gen.go`: the API's own components, such as Scheduling's records and `Problem`;
 - `fhir/r4_gen.go`: every FHIR R4 type;
 - `operations_gen_test.go`: each operation called with the spec's own example;
-- `api.md`.
+- `api.md`;
+- `openapi/code-samples.json`: an [OpenAPI Overlay](https://spec.openapis.org/overlay/latest.html)
+  that adds a Go sample to every operation as `x-codeSamples`, for a documentation site to show
+  beside it. Each sample is a whole program that sends the operation's example request from the spec
+  and prints one field of the answer. `samples_test.go` builds each one in a module of its own and
+  runs it as it is written, with `HAAU3_BASE_URL` pointing at a stand-in that answers only the
+  example request.
 
 To take a new spec:
 
@@ -68,7 +74,7 @@ so the reasons are here):
 - three rules compare `info.version` as a release number and misread `1.0.0-preview.N`, so they are
   off (`api-version-decreased`, `api-version-not-bumped`, `api-major-version-not-bumped`).
 
-If the generated code did not change, the PR is titled `chore:` and releases nothing. To run oasdiff
+If neither the generated code nor the samples changed, the PR is titled `chore:` and releases nothing. To run oasdiff
 yourself, against the spec on `main`:
 
 ```sh

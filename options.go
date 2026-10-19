@@ -47,7 +47,8 @@ func WithAPIKey(key string) Option {
 }
 
 // WithBaseURL sets where the API is: an http or https URL with a host. It defaults to
-// https://api.haau3.com. For NewClient only.
+// HAAU3_BASE_URL when that is set, and to https://api.haau3.com otherwise. The API key is sent
+// there only. For NewClient only.
 func WithBaseURL(url string) Option {
 	return func(s *settings) {
 		s.baseURL = &url

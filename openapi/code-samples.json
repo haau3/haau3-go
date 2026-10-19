@@ -1,0 +1,442 @@
+{
+  "overlay": "1.2.0",
+  "info": {
+    "title": "Go samples for every operation of the haau3 platform API",
+    "version": "1.0.0-preview.3"
+  },
+  "extends": "https://api.haau3.com/openapi.json",
+  "actions": [
+    {
+      "target": "$.paths['/v1/scheduling/provider-locations'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfound, err := client.SearchProviderLocations(ctx, haau3.SearchProviderLocationsParams{Publisher: new(\"haau3\"), Limit: new(1)})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(found.Total)\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/scheduling/slots'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfound, err := client.SearchSlots(ctx, haau3.SearchSlotsParams{Publisher: new(\"haau3\"), Limit: new(1)})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(found.Total)\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/scheduling/publishers'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfound, err := client.ListPublishers(ctx)\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(len(found.Publishers))\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/scheduling/service-types'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfound, err := client.ListServiceTypes(ctx, haau3.ListServiceTypesParams{})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(len(found.ServiceTypes))\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/scheduling/specialties'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfound, err := client.ListSpecialties(ctx, haau3.ListSpecialtiesParams{})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(len(found.Specialties))\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/metadata'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tmetadata, err := client.FHIRMetadata(ctx, haau3.FHIRMetadataParams{})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(metadata.ResourceType())\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4'].post",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tentry1 := haau3.Calls.CodeSystemLookup(haau3.CodeSystemLookupParams{Code: \"2345-7\", System: new(\"http://loinc.org\"), Property: []string{\"SHORTNAME\"}})\n\tentry2 := haau3.Calls.CodeSystemLookup(haau3.CodeSystemLookupParams{Code: \"8867-4\", System: new(\"http://loinc.org\"), Property: []string{\"SHORTNAME\"}})\n\tentry3 := haau3.Calls.ListInsurancePlanCounties(haau3.ListInsurancePlanCountiesParams{State: \"DE\"})\n\tif err := client.Batch(ctx, []haau3.Entry{entry1, entry2, entry3}); err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tshow(entry1.Result())\n\tshow(entry2.Result())\n\tshow(entry3.Result())\n}\n\n// show prints that one entry of the batch answered, or why it failed.\nfunc show[T any](_ T, err error) {\n\tif err != nil {\n\t\tfmt.Println(err)\n\t\treturn\n\t}\n\tfmt.Println(\"ok\")\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/CodeSystem/$lookup'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tparameters, err := client.CodeSystemLookup(ctx, haau3.CodeSystemLookupParams{Code: \"2345-7\", System: new(\"http://loinc.org\"), Property: []string{\"SHORTNAME\"}})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfor _, parameter := range parameters.Parameter {\n\t\tif parameter.Name != nil {\n\t\t\tfmt.Println(*parameter.Name)\n\t\t}\n\t}\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/CodeSystem/$lookup'].post",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n\t\"github.com/haau3/haau3-go/fhir\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tparameters, err := client.CodeSystemLookupPost(ctx, &fhir.Parameters{\n\t\tParameter: []fhir.ParametersParameter{\n\t\t\t{Name: new(\"system\"), ValueURI: new(\"http://loinc.org\")},\n\t\t\t{Name: new(\"code\"), ValueCode: new(\"2345-7\")},\n\t\t\t{Name: new(\"property\"), ValueCode: new(\"SHORTNAME\")},\n\t\t},\n\t})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfor _, parameter := range parameters.Parameter {\n\t\tif parameter.Name != nil {\n\t\t\tfmt.Println(*parameter.Name)\n\t\t}\n\t}\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/CodeSystem/$validate-code'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tparameters, err := client.CodeSystemValidateCode(ctx, haau3.CodeSystemValidateCodeParams{URL: new(\"http://loinc.org\"), Code: \"2345-7\"})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfor _, parameter := range parameters.Parameter {\n\t\tif parameter.Name != nil {\n\t\t\tfmt.Println(*parameter.Name)\n\t\t}\n\t}\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/CodeSystem/$validate-code'].post",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n\t\"github.com/haau3/haau3-go/fhir\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tparameters, err := client.CodeSystemValidateCodePost(ctx, &fhir.Parameters{\n\t\tParameter: []fhir.ParametersParameter{\n\t\t\t{Name: new(\"url\"), ValueURI: new(\"http://loinc.org\")},\n\t\t\t{Name: new(\"code\"), ValueCode: new(\"2345-7\")},\n\t\t},\n\t})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfor _, parameter := range parameters.Parameter {\n\t\tif parameter.Name != nil {\n\t\t\tfmt.Println(*parameter.Name)\n\t\t}\n\t}\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/ValueSet/$expand'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tvalueSet, err := client.ValueSetExpand(ctx, haau3.ValueSetExpandParams{URL: new(\"http://loinc.org/vs/LL360-9\")})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tif valueSet.ID != nil {\n\t\tfmt.Println(*valueSet.ID)\n\t}\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/ValueSet/$expand'].post",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n\t\"github.com/haau3/haau3-go/fhir\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tvalueSet, err := client.ValueSetExpandPost(ctx, &fhir.Parameters{\n\t\tParameter: []fhir.ParametersParameter{\n\t\t\t{Name: new(\"url\"), ValueURI: new(\"http://loinc.org/vs/LL360-9\")},\n\t\t},\n\t})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tif valueSet.ID != nil {\n\t\tfmt.Println(*valueSet.ID)\n\t}\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/ValueSet/$validate-code'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tparameters, err := client.ValueSetValidateCode(ctx, haau3.ValueSetValidateCodeParams{URL: new(\"http://hl7.org/fhir/ValueSet/observation-vitalsignresult\"), Code: \"8867-4\", System: new(\"http://loinc.org\")})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfor _, parameter := range parameters.Parameter {\n\t\tif parameter.Name != nil {\n\t\t\tfmt.Println(*parameter.Name)\n\t\t}\n\t}\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/ValueSet/$validate-code'].post",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n\t\"github.com/haau3/haau3-go/fhir\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tparameters, err := client.ValueSetValidateCodePost(ctx, &fhir.Parameters{\n\t\tParameter: []fhir.ParametersParameter{\n\t\t\t{\n\t\t\t\tName:     new(\"url\"),\n\t\t\t\tValueURI: new(\"http://hl7.org/fhir/ValueSet/observation-vitalsignresult\"),\n\t\t\t},\n\t\t\t{\n\t\t\t\tName:        new(\"coding\"),\n\t\t\t\tValueCoding: &fhir.Coding{Code: new(\"8867-4\"), System: new(\"http://loinc.org\")},\n\t\t\t},\n\t\t},\n\t})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfor _, parameter := range parameters.Parameter {\n\t\tif parameter.Name != nil {\n\t\t\tfmt.Println(*parameter.Name)\n\t\t}\n\t}\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/Practitioner'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tbundle, err := client.SearchPractitioner(ctx, haau3.SearchPractitionerParams{Identifier: new(\"1093209884\")})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(len(bundle.Entry))\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/Practitioner/{id}'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tpractitioner, err := client.ReadPractitioner(ctx, \"Practitioner-1093209884\")\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tif practitioner.ID != nil {\n\t\tfmt.Println(*practitioner.ID)\n\t}\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/PractitionerRole'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tbundle, err := client.SearchPractitionerRole(ctx, haau3.SearchPractitionerRoleParams{Practitioner: new(\"Practitioner-1093209884\"), Count: new(2)})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(len(bundle.Entry))\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/PractitionerRole/{id}'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tpractitionerRole, err := client.ReadPractitionerRole(ctx, \"PractitionerRole-179421b5-5919-4f54-84c9-a4473b68f74c\")\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tif practitionerRole.ID != nil {\n\t\tfmt.Println(*practitionerRole.ID)\n\t}\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/Organization'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tbundle, err := client.SearchOrganization(ctx, haau3.SearchOrganizationParams{Type: new(\"ntwk\"), Count: new(2)})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(len(bundle.Entry))\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/Organization/{id}'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\torganization, err := client.ReadOrganization(ctx, \"Organization-ea579d05-454e-4359-8751-900c940a599a\")\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tif organization.ID != nil {\n\t\tfmt.Println(*organization.ID)\n\t}\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/OrganizationAffiliation'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tbundle, err := client.SearchOrganizationAffiliation(ctx, haau3.SearchOrganizationAffiliationParams{Network: new(\"Organization-ea579d05-454e-4359-8751-900c940a599a\"), Count: new(2)})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(len(bundle.Entry))\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/OrganizationAffiliation/{id}'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\torganizationAffiliation, err := client.ReadOrganizationAffiliation(ctx, \"OrganizationAffiliation-000cc9b9-738c-43cd-b923-03ac9ab4714d\")\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tif organizationAffiliation.ID != nil {\n\t\tfmt.Println(*organizationAffiliation.ID)\n\t}\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/HealthcareService'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tbundle, err := client.SearchHealthcareService(ctx, haau3.SearchHealthcareServiceParams{Location: new(\"Location-ba334cb2-a0f9-4147-ab31-1c5af4ab9a4d\"), Count: new(2)})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(len(bundle.Entry))\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/HealthcareService/{id}'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\thealthcareService, err := client.ReadHealthcareService(ctx, \"HealthcareService-0009bcae-631e-45c0-9d3c-5691acb4a05d\")\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tif healthcareService.ID != nil {\n\t\tfmt.Println(*healthcareService.ID)\n\t}\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/Location'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tbundle, err := client.SearchLocation(ctx, haau3.SearchLocationParams{Organization: new(\"Organization-1093090342\"), Count: new(2)})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(len(bundle.Entry))\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/Location/{id}'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tlocation, err := client.ReadLocation(ctx, \"Location-26e6731f-5e6a-48e4-aa2f-9f4c40cf402b\")\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tif location.ID != nil {\n\t\tfmt.Println(*location.ID)\n\t}\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/Endpoint'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tbundle, err := client.SearchEndpoint(ctx, haau3.SearchEndpointParams{Organization: new(\"Organization-1326655846\"), Count: new(2)})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(len(bundle.Entry))\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/Endpoint/{id}'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tendpoint, err := client.ReadEndpoint(ctx, \"Endpoint-000508b0-e3f0-4108-8d1d-a610f0675358\")\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tif endpoint.ID != nil {\n\t\tfmt.Println(*endpoint.ID)\n\t}\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/Questionnaire'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tbundle, err := client.SearchQuestionnaire(ctx, haau3.SearchQuestionnaireParams{URL: new(\"http://loinc.org/q/44249-1\")})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(len(bundle.Entry))\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/Questionnaire/{id}'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tquestionnaire, err := client.ReadQuestionnaire(ctx, \"44249-1\")\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tif questionnaire.ID != nil {\n\t\tfmt.Println(*questionnaire.ID)\n\t}\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/InsurancePlan'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tbundle, err := client.SearchInsurancePlan(ctx, haau3.SearchInsurancePlanParams{Identifier: new(\"H2406-013-000\")})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(len(bundle.Entry))\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/InsurancePlan/$counties'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tparameters, err := client.ListInsurancePlanCounties(ctx, haau3.ListInsurancePlanCountiesParams{State: \"FL\"})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfor _, parameter := range parameters.Parameter {\n\t\tif parameter.Name != nil {\n\t\t\tfmt.Println(*parameter.Name)\n\t\t}\n\t}\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/InsurancePlan/{id}'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tinsurancePlan, err := client.ReadInsurancePlan(ctx, \"H2406-013-000\")\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tif insurancePlan.ID != nil {\n\t\tfmt.Println(*insurancePlan.ID)\n\t}\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/InsurancePlan/{id}/$in-network'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tparameters, err := client.CheckInsurancePlanNetwork(ctx, \"H3359-038-000\", haau3.CheckInsurancePlanNetworkParams{NPI: []string{\"1518929058\", \"1992700001\"}})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfor _, parameter := range parameters.Parameter {\n\t\tif parameter.Name != nil {\n\t\t\tfmt.Println(*parameter.Name)\n\t\t}\n\t}\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/$reconcile-medications'].post",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\t\"os\"\n\n\t\"github.com/haau3/haau3-go\"\n\t\"github.com/haau3/haau3-go/fhir\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tdata, err := os.ReadFile(\"records.json\") // one patient's FHIR medication records\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\trecords, err := fhir.DecodeResource(data)\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tbundle, err := client.ReconcileMedications(ctx, records)\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(len(bundle.Entry))\n}\n"
+          }
+        ]
+      }
+    }
+  ]
+}

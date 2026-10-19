@@ -36,6 +36,16 @@ func goName(name string) string {
 	return b.String()
 }
 
+// localName is a name as an unexported Go identifier, for an argument: the first word all lower
+// case, the rest as goName writes them. `id` is `id`, not `iD`; `planId` is `planID`.
+func localName(name string) string {
+	parts := words(name)
+	if len(parts) == 0 {
+		return ""
+	}
+	return strings.ToLower(parts[0]) + goName(strings.Join(parts[1:], "_"))
+}
+
 // paramName is a query parameter's wire name as a field of its operation's params struct: a
 // leading `_` is dropped, so `_count` is `Count` and `_id` is `ID`.
 func paramName(wire string) (string, error) {

@@ -97,8 +97,11 @@ field's doc comment gives the API's own name.
 An agent can read the docs directly:
 
 - [docs.haau3.com/llms.txt](https://docs.haau3.com/llms.txt) lists every docs page as Markdown.
-- `https://docs.haau3.com/mcp` is an MCP server that searches the docs. In Claude Code:
-  `claude mcp add --transport http haau3 https://docs.haau3.com/mcp`.
+- `https://docs.haau3.com/mcp` is an MCP server that searches the docs. To add it:
+  - Claude Code: `claude mcp add --transport http haau3 https://docs.haau3.com/mcp`
+  - Codex: `codex mcp add haau3 --url https://docs.haau3.com/mcp`
+  - Cursor, in `.cursor/mcp.json`: `{ "mcpServers": { "haau3": { "url": "https://docs.haau3.com/mcp" } } }`
+  - VS Code: `code --add-mcp '{"name":"haau3","type":"http","url":"https://docs.haau3.com/mcp"}'`
 
 `go doc github.com/haau3/haau3-go` gives the package's own documentation.
 
@@ -107,7 +110,7 @@ An agent can read the docs directly:
 | Option | Default | |
 |---|---|---|
 | `WithAPIKey(key)` | `HAAU3_API_KEY` | Your platform API key. |
-| `WithBaseURL(url)` | `https://api.haau3.com` | Where the API is. For `NewClient` only. |
+| `WithBaseURL(url)` | `HAAU3_BASE_URL`, then `https://api.haau3.com` | Where the API is. The API key is sent there only. For `NewClient` only. |
 | `WithTimeout(d)` | `65 * time.Second` | How long one attempt may take, sending and reading its answer. |
 | `WithMaxRetries(n)` | `1` | Retries after a timeout, a network failure, a 429 or a 5xx. |
 | `WithHTTPClient(c)` | a new `*http.Client` | Your own, for a proxy, certificates, connection limits or tracing. For `NewClient` only. |
@@ -329,7 +332,9 @@ func TestMyCode(t *testing.T) {
 }
 ```
 
-`httptest.NewServer` with `haau3.WithBaseURL(server.URL)` works too.
+`httptest.NewServer` with `haau3.WithBaseURL(server.URL)` works too. To run code you have not
+changed against a stand-in API of your own, set `HAAU3_BASE_URL` to its address: a client made
+without `WithBaseURL` sends there, and nowhere else.
 
 ## Versions
 

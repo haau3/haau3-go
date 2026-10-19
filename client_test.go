@@ -70,6 +70,61 @@ func TestABadBaseURLIsRefusedWhenTheClientIsMade(t *testing.T) {
 	}
 }
 
+func TestHAAU3BaseURLIsWhereRequestsGoWithNoWithBaseURL(t *testing.T) {
+	t.Setenv("HAAU3_BASE_URL", "https://stand-in.example.test/")
+	rec := record(fhirReply(200, plan))
+	c, err := NewClient(WithAPIKey(testKey), WithHTTPClient(&http.Client{Transport: rec}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.BaseURL() != "https://stand-in.example.test" {
+		t.Fatal(c.BaseURL())
+	}
+	_, _ = c.ReadInsurancePlan(context.Background(), "H1")
+	if got := rec.last().URL.String(); got != "https://stand-in.example.test/v1/fhir/r4/InsurancePlan/H1" {
+		t.Error(got)
+	}
+
+	// WithBaseURL beats it, and an empty one is unset.
+	c, err = NewClient(WithAPIKey(testKey), WithBaseURL("https://other.example.test"))
+	if err != nil || c.BaseURL() != "https://other.example.test" {
+		t.Errorf("%v %v", c, err)
+	}
+	t.Setenv("HAAU3_BASE_URL", "")
+	c, err = NewClient(WithAPIKey(testKey))
+	if err != nil || c.BaseURL() != "https://api.haau3.com" {
+		t.Errorf("%v %v", c, err)
+	}
+}
+
+func TestABadHAAU3BaseURLIsRefusedByItsOwnName(t *testing.T) {
+	t.Setenv("HAAU3_BASE_URL", "ftp://stand-in.example.test")
+	_, err := NewClient(WithAPIKey(testKey))
+	if e := asError(t, err); e.Kind != KindNotSent || !strings.HasPrefix(e.Error(), `HAAU3_BASE_URL takes an http or https URL with a host, such as https://api.haau3.com: "ftp://stand-in.example.test" is not one.`) {
+		t.Errorf("%v", err)
+	}
+	// WithBaseURL beats a bad one too.
+	if _, err := NewClient(WithAPIKey(testKey), WithBaseURL("https://api.haau3.com")); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestTheKeyGoesToHAAU3BaseURLsHostOnly(t *testing.T) {
+	t.Setenv("HAAU3_BASE_URL", "https://stand-in.example.test")
+	rec := record(fhirReply(200, plan))
+	c, err := NewClient(WithAPIKey(testKey), WithHTTPClient(&http.Client{Transport: rec}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = c.Request(context.Background(), RawRequest{Method: "GET", Path: "https://api.haau3.com/v1/scheduling/publishers"})
+	if e := asError(t, err); e.Kind != KindNotSent || !strings.Contains(e.Error(), "refusing to send the API key to https://api.haau3.com") {
+		t.Errorf("%v", err)
+	}
+	if rec.count() != 0 {
+		t.Errorf("%d requests", rec.count())
+	}
+}
+
 func TestAnOptionInTheWrongPlaceIsRefused(t *testing.T) {
 	if _, err := NewClient(WithAPIKey(testKey), WithCorrelationID("6b1f3c2e-4d5a-4e6f-8a9b-0c1d2e3f4a5b")); err == nil {
 		t.Error("NewClient took WithCorrelationID")

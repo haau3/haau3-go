@@ -78,6 +78,11 @@ func outputs(root string) (map[string][]byte, error) {
 		out[name] = formatted
 	}
 	out["api.md"] = []byte(apiMD(s))
+	samples, err := emitSamples(s, hl7)
+	if err != nil {
+		return nil, err
+	}
+	out["openapi/code-samples.json"] = samples
 	return out, nil
 }
 

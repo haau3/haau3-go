@@ -1077,9 +1077,9 @@ func (p ValueSetValidateCodeParams) query() (query, error) {
 //
 // GET /v1/fhir/r4/InsurancePlan/{id}/$in-network (checkInsurancePlanNetwork):
 // https://docs.haau3.com/api-reference/plan-benefits/check-providers-against-a-plans-network
-func (c *Client) CheckInsurancePlanNetwork(ctx context.Context, iD string, params CheckInsurancePlanNetworkParams, opts ...Option) (*fhir.Parameters, error) {
+func (c *Client) CheckInsurancePlanNetwork(ctx context.Context, id string, params CheckInsurancePlanNetworkParams, opts ...Option) (*fhir.Parameters, error) {
 	query, err := params.query()
-	return call(ctx, c, &opCheckInsurancePlanNetwork, []string{iD}, query, err, nil, decodeAs[fhir.Parameters], opts)
+	return call(ctx, c, &opCheckInsurancePlanNetwork, []string{id}, query, err, nil, decodeAs[fhir.Parameters], opts)
 }
 
 // CodeSystemLookup: Look up a code.
@@ -1227,8 +1227,8 @@ func (c *Client) ListSpecialties(ctx context.Context, params ListSpecialtiesPara
 //
 // GET /v1/fhir/r4/Endpoint/{id} (readEndpoint):
 // https://docs.haau3.com/api-reference/provider-directory/read-an-endpoint
-func (c *Client) ReadEndpoint(ctx context.Context, iD string, opts ...Option) (*fhir.Endpoint, error) {
-	return call(ctx, c, &opReadEndpoint, []string{iD}, nil, nil, nil, decodeAs[fhir.Endpoint], opts)
+func (c *Client) ReadEndpoint(ctx context.Context, id string, opts ...Option) (*fhir.Endpoint, error) {
+	return call(ctx, c, &opReadEndpoint, []string{id}, nil, nil, nil, decodeAs[fhir.Endpoint], opts)
 }
 
 // ReadHealthcareService: Read a HealthcareService.
@@ -1237,8 +1237,8 @@ func (c *Client) ReadEndpoint(ctx context.Context, iD string, opts ...Option) (*
 //
 // GET /v1/fhir/r4/HealthcareService/{id} (readHealthcareService):
 // https://docs.haau3.com/api-reference/provider-directory/read-a-healthcareservice
-func (c *Client) ReadHealthcareService(ctx context.Context, iD string, opts ...Option) (*fhir.HealthcareService, error) {
-	return call(ctx, c, &opReadHealthcareService, []string{iD}, nil, nil, nil, decodeAs[fhir.HealthcareService], opts)
+func (c *Client) ReadHealthcareService(ctx context.Context, id string, opts ...Option) (*fhir.HealthcareService, error) {
+	return call(ctx, c, &opReadHealthcareService, []string{id}, nil, nil, nil, decodeAs[fhir.HealthcareService], opts)
 }
 
 // ReadInsurancePlan: Read a plan.
@@ -1251,8 +1251,8 @@ func (c *Client) ReadHealthcareService(ctx context.Context, iD string, opts ...O
 //
 // GET /v1/fhir/r4/InsurancePlan/{id} (readInsurancePlan):
 // https://docs.haau3.com/api-reference/plan-benefits/read-a-plan
-func (c *Client) ReadInsurancePlan(ctx context.Context, iD string, opts ...Option) (*fhir.InsurancePlan, error) {
-	return call(ctx, c, &opReadInsurancePlan, []string{iD}, nil, nil, nil, decodeAs[fhir.InsurancePlan], opts)
+func (c *Client) ReadInsurancePlan(ctx context.Context, id string, opts ...Option) (*fhir.InsurancePlan, error) {
+	return call(ctx, c, &opReadInsurancePlan, []string{id}, nil, nil, nil, decodeAs[fhir.InsurancePlan], opts)
 }
 
 // ReadLocation: Read a Location.
@@ -1261,8 +1261,8 @@ func (c *Client) ReadInsurancePlan(ctx context.Context, iD string, opts ...Optio
 //
 // GET /v1/fhir/r4/Location/{id} (readLocation):
 // https://docs.haau3.com/api-reference/provider-directory/read-a-location
-func (c *Client) ReadLocation(ctx context.Context, iD string, opts ...Option) (*fhir.Location, error) {
-	return call(ctx, c, &opReadLocation, []string{iD}, nil, nil, nil, decodeAs[fhir.Location], opts)
+func (c *Client) ReadLocation(ctx context.Context, id string, opts ...Option) (*fhir.Location, error) {
+	return call(ctx, c, &opReadLocation, []string{id}, nil, nil, nil, decodeAs[fhir.Location], opts)
 }
 
 // ReadOrganization: Read an Organization.
@@ -1271,8 +1271,8 @@ func (c *Client) ReadLocation(ctx context.Context, iD string, opts ...Option) (*
 //
 // GET /v1/fhir/r4/Organization/{id} (readOrganization):
 // https://docs.haau3.com/api-reference/provider-directory/read-an-organization
-func (c *Client) ReadOrganization(ctx context.Context, iD string, opts ...Option) (*fhir.Organization, error) {
-	return call(ctx, c, &opReadOrganization, []string{iD}, nil, nil, nil, decodeAs[fhir.Organization], opts)
+func (c *Client) ReadOrganization(ctx context.Context, id string, opts ...Option) (*fhir.Organization, error) {
+	return call(ctx, c, &opReadOrganization, []string{id}, nil, nil, nil, decodeAs[fhir.Organization], opts)
 }
 
 // ReadOrganizationAffiliation: Read an OrganizationAffiliation.
@@ -1281,8 +1281,8 @@ func (c *Client) ReadOrganization(ctx context.Context, iD string, opts ...Option
 //
 // GET /v1/fhir/r4/OrganizationAffiliation/{id} (readOrganizationAffiliation):
 // https://docs.haau3.com/api-reference/provider-directory/read-an-organizationaffiliation
-func (c *Client) ReadOrganizationAffiliation(ctx context.Context, iD string, opts ...Option) (*fhir.OrganizationAffiliation, error) {
-	return call(ctx, c, &opReadOrganizationAffiliation, []string{iD}, nil, nil, nil, decodeAs[fhir.OrganizationAffiliation], opts)
+func (c *Client) ReadOrganizationAffiliation(ctx context.Context, id string, opts ...Option) (*fhir.OrganizationAffiliation, error) {
+	return call(ctx, c, &opReadOrganizationAffiliation, []string{id}, nil, nil, nil, decodeAs[fhir.OrganizationAffiliation], opts)
 }
 
 // ReadPractitioner: Read a Practitioner.
@@ -1291,8 +1291,8 @@ func (c *Client) ReadOrganizationAffiliation(ctx context.Context, iD string, opt
 //
 // GET /v1/fhir/r4/Practitioner/{id} (readPractitioner):
 // https://docs.haau3.com/api-reference/provider-directory/read-a-practitioner
-func (c *Client) ReadPractitioner(ctx context.Context, iD string, opts ...Option) (*fhir.Practitioner, error) {
-	return call(ctx, c, &opReadPractitioner, []string{iD}, nil, nil, nil, decodeAs[fhir.Practitioner], opts)
+func (c *Client) ReadPractitioner(ctx context.Context, id string, opts ...Option) (*fhir.Practitioner, error) {
+	return call(ctx, c, &opReadPractitioner, []string{id}, nil, nil, nil, decodeAs[fhir.Practitioner], opts)
 }
 
 // ReadPractitionerRole: Read a PractitionerRole.
@@ -1301,8 +1301,8 @@ func (c *Client) ReadPractitioner(ctx context.Context, iD string, opts ...Option
 //
 // GET /v1/fhir/r4/PractitionerRole/{id} (readPractitionerRole):
 // https://docs.haau3.com/api-reference/provider-directory/read-a-practitionerrole
-func (c *Client) ReadPractitionerRole(ctx context.Context, iD string, opts ...Option) (*fhir.PractitionerRole, error) {
-	return call(ctx, c, &opReadPractitionerRole, []string{iD}, nil, nil, nil, decodeAs[fhir.PractitionerRole], opts)
+func (c *Client) ReadPractitionerRole(ctx context.Context, id string, opts ...Option) (*fhir.PractitionerRole, error) {
+	return call(ctx, c, &opReadPractitionerRole, []string{id}, nil, nil, nil, decodeAs[fhir.PractitionerRole], opts)
 }
 
 // ReadQuestionnaire: Read a questionnaire.
@@ -1316,8 +1316,8 @@ func (c *Client) ReadPractitionerRole(ctx context.Context, iD string, opts ...Op
 //
 // GET /v1/fhir/r4/Questionnaire/{id} (readQuestionnaire):
 // https://docs.haau3.com/api-reference/questionnaires/read-a-questionnaire
-func (c *Client) ReadQuestionnaire(ctx context.Context, iD string, opts ...Option) (*fhir.Questionnaire, error) {
-	return call(ctx, c, &opReadQuestionnaire, []string{iD}, nil, nil, nil, decodeAs[fhir.Questionnaire], opts)
+func (c *Client) ReadQuestionnaire(ctx context.Context, id string, opts ...Option) (*fhir.Questionnaire, error) {
+	return call(ctx, c, &opReadQuestionnaire, []string{id}, nil, nil, nil, decodeAs[fhir.Questionnaire], opts)
 }
 
 // ReconcileMedications: Reconcile one patient's medication records.
@@ -1593,9 +1593,9 @@ func (c *Client) ValueSetValidateCodePost(ctx context.Context, body *fhir.Parame
 
 // CheckInsurancePlanNetwork is Client.CheckInsurancePlanNetwork as an entry of a batch, sent by
 // Client.Batch.
-func (BatchCalls) CheckInsurancePlanNetwork(iD string, params CheckInsurancePlanNetworkParams) *Call[*fhir.Parameters] {
+func (BatchCalls) CheckInsurancePlanNetwork(id string, params CheckInsurancePlanNetworkParams) *Call[*fhir.Parameters] {
 	query, err := params.query()
-	return newCall(&opCheckInsurancePlanNetwork, []string{iD}, query, err, nil, decodeAs[fhir.Parameters])
+	return newCall(&opCheckInsurancePlanNetwork, []string{id}, query, err, nil, decodeAs[fhir.Parameters])
 }
 
 // CodeSystemLookup is Client.CodeSystemLookup as an entry of a batch, sent by Client.Batch.
@@ -1636,50 +1636,50 @@ func (BatchCalls) ListInsurancePlanCounties(params ListInsurancePlanCountiesPara
 }
 
 // ReadEndpoint is Client.ReadEndpoint as an entry of a batch, sent by Client.Batch.
-func (BatchCalls) ReadEndpoint(iD string) *Call[*fhir.Endpoint] {
-	return newCall(&opReadEndpoint, []string{iD}, nil, nil, nil, decodeAs[fhir.Endpoint])
+func (BatchCalls) ReadEndpoint(id string) *Call[*fhir.Endpoint] {
+	return newCall(&opReadEndpoint, []string{id}, nil, nil, nil, decodeAs[fhir.Endpoint])
 }
 
 // ReadHealthcareService is Client.ReadHealthcareService as an entry of a batch, sent by
 // Client.Batch.
-func (BatchCalls) ReadHealthcareService(iD string) *Call[*fhir.HealthcareService] {
-	return newCall(&opReadHealthcareService, []string{iD}, nil, nil, nil, decodeAs[fhir.HealthcareService])
+func (BatchCalls) ReadHealthcareService(id string) *Call[*fhir.HealthcareService] {
+	return newCall(&opReadHealthcareService, []string{id}, nil, nil, nil, decodeAs[fhir.HealthcareService])
 }
 
 // ReadInsurancePlan is Client.ReadInsurancePlan as an entry of a batch, sent by Client.Batch.
-func (BatchCalls) ReadInsurancePlan(iD string) *Call[*fhir.InsurancePlan] {
-	return newCall(&opReadInsurancePlan, []string{iD}, nil, nil, nil, decodeAs[fhir.InsurancePlan])
+func (BatchCalls) ReadInsurancePlan(id string) *Call[*fhir.InsurancePlan] {
+	return newCall(&opReadInsurancePlan, []string{id}, nil, nil, nil, decodeAs[fhir.InsurancePlan])
 }
 
 // ReadLocation is Client.ReadLocation as an entry of a batch, sent by Client.Batch.
-func (BatchCalls) ReadLocation(iD string) *Call[*fhir.Location] {
-	return newCall(&opReadLocation, []string{iD}, nil, nil, nil, decodeAs[fhir.Location])
+func (BatchCalls) ReadLocation(id string) *Call[*fhir.Location] {
+	return newCall(&opReadLocation, []string{id}, nil, nil, nil, decodeAs[fhir.Location])
 }
 
 // ReadOrganization is Client.ReadOrganization as an entry of a batch, sent by Client.Batch.
-func (BatchCalls) ReadOrganization(iD string) *Call[*fhir.Organization] {
-	return newCall(&opReadOrganization, []string{iD}, nil, nil, nil, decodeAs[fhir.Organization])
+func (BatchCalls) ReadOrganization(id string) *Call[*fhir.Organization] {
+	return newCall(&opReadOrganization, []string{id}, nil, nil, nil, decodeAs[fhir.Organization])
 }
 
 // ReadOrganizationAffiliation is Client.ReadOrganizationAffiliation as an entry of a batch, sent by
 // Client.Batch.
-func (BatchCalls) ReadOrganizationAffiliation(iD string) *Call[*fhir.OrganizationAffiliation] {
-	return newCall(&opReadOrganizationAffiliation, []string{iD}, nil, nil, nil, decodeAs[fhir.OrganizationAffiliation])
+func (BatchCalls) ReadOrganizationAffiliation(id string) *Call[*fhir.OrganizationAffiliation] {
+	return newCall(&opReadOrganizationAffiliation, []string{id}, nil, nil, nil, decodeAs[fhir.OrganizationAffiliation])
 }
 
 // ReadPractitioner is Client.ReadPractitioner as an entry of a batch, sent by Client.Batch.
-func (BatchCalls) ReadPractitioner(iD string) *Call[*fhir.Practitioner] {
-	return newCall(&opReadPractitioner, []string{iD}, nil, nil, nil, decodeAs[fhir.Practitioner])
+func (BatchCalls) ReadPractitioner(id string) *Call[*fhir.Practitioner] {
+	return newCall(&opReadPractitioner, []string{id}, nil, nil, nil, decodeAs[fhir.Practitioner])
 }
 
 // ReadPractitionerRole is Client.ReadPractitionerRole as an entry of a batch, sent by Client.Batch.
-func (BatchCalls) ReadPractitionerRole(iD string) *Call[*fhir.PractitionerRole] {
-	return newCall(&opReadPractitionerRole, []string{iD}, nil, nil, nil, decodeAs[fhir.PractitionerRole])
+func (BatchCalls) ReadPractitionerRole(id string) *Call[*fhir.PractitionerRole] {
+	return newCall(&opReadPractitionerRole, []string{id}, nil, nil, nil, decodeAs[fhir.PractitionerRole])
 }
 
 // ReadQuestionnaire is Client.ReadQuestionnaire as an entry of a batch, sent by Client.Batch.
-func (BatchCalls) ReadQuestionnaire(iD string) *Call[*fhir.Questionnaire] {
-	return newCall(&opReadQuestionnaire, []string{iD}, nil, nil, nil, decodeAs[fhir.Questionnaire])
+func (BatchCalls) ReadQuestionnaire(id string) *Call[*fhir.Questionnaire] {
+	return newCall(&opReadQuestionnaire, []string{id}, nil, nil, nil, decodeAs[fhir.Questionnaire])
 }
 
 // SearchEndpoint is Client.SearchEndpoint as an entry of a batch, sent by Client.Batch.
