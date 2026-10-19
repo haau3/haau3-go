@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 )
 
@@ -15,6 +16,12 @@ func Server() *httptest.Server {
 	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/fhir+json")
 		w.Header().Set("X-Request-Id", "6b1f3c2e-4d5a-4e6f-8a9b-0c1d2e3f4a5b")
+		// As the API does: a page larger than 50 is refused rather than quietly reduced.
+		if count, err := strconv.Atoi(r.URL.Query().Get("_count")); err == nil && count > 50 {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = fmt.Fprint(w, `{"resourceType":"OperationOutcome","issue":[{"severity":"error","code":"invalid"}]}`)
+			return
+		}
 		switch {
 		case r.URL.Path == "/v1/fhir/r4/InsurancePlan/H2406-013-000":
 			_, _ = fmt.Fprint(w, `{"resourceType":"InsurancePlan","id":"H2406-013-000","name":"A plan","status":"active"}`)
