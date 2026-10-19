@@ -125,7 +125,7 @@ NOT_OURS = [
     re.compile(p)
     for p in (
         r"(^|/)[^/]+_gen(_test)?\.go$",
-        r"^openapi/openapi\.json$",
+        r"^openapi/(openapi|code-samples)\.json$",
         r"^hl7/",
         r"^api\.md$",
         r"(^|/)go\.sum$",

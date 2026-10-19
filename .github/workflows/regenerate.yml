@@ -38,7 +38,7 @@ env:
   OASDIFF_VERSION: "1.33.0"
   OASDIFF_SHA256: "43a4e328e2d13ba1552d760aa68d2485c75c5621f309f6ff64ae895188345247"
   # The files the generator writes.
-  GENERATED: fhir/r4_gen.go types_gen.go operations_gen.go operations_gen_test.go api.md
+  GENERATED: fhir/r4_gen.go types_gen.go operations_gen.go operations_gen_test.go api.md openapi/code-samples.json
 
 jobs:
   regenerate:
