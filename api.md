@@ -2,7 +2,7 @@
 
 # API reference
 
-Every operation of the haau3 platform API (`1.0.0-preview.3`) is a method on `*haau3.Client`, named by
+Every operation of the haau3 platform API (`1.0.0-preview.4`) is a method on `*haau3.Client`, named by
 its operationId in Go's style (`fhirMetadata` is `FHIRMetadata`). Each links to its page on
 docs.haau3.com, which shows its parameters and an example exchange. Every method takes a
 `context.Context` first; then the path values; then `body` for an operation that takes one;
@@ -17,7 +17,7 @@ entries `haau3.Calls` makes. It takes every operation on the FHIR base except `F
 
 ## Scheduling
 
-Provider availability (SMART Scheduling Links) — slots and publishers.
+Provider availability (SMART Scheduling Links): slots and publishers.
 
 | Method | Request | What it does |
 |---|---|---|

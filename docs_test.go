@@ -154,9 +154,10 @@ func TestAPIMDListsEveryOperationOnceWithItsDocsPage(t *testing.T) {
 }
 
 func TestNoEmDashInWhatThisRepositoryWrites(t *testing.T) {
-	for _, name := range []string{"README.md", "CONTRIBUTING.md", "SECURITY.md", "doc.go", "options.go", "errors.go", "client.go", "fhir/resource.go"} {
-		if strings.Contains(readFile(t, name), "—") {
-			t.Errorf("%s has an em dash", name)
+	// api.md is generated from the spec's own words, and published beside the README.
+	for _, name := range []string{"README.md", "CONTRIBUTING.md", "SECURITY.md", "api.md", "doc.go", "options.go", "errors.go", "client.go", "fhir/resource.go"} {
+		if text := readFile(t, name); strings.ContainsAny(text, "\u2014\u2013") {
+			t.Errorf("%s has an em or en dash", name)
 		}
 	}
 }
