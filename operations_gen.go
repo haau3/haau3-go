@@ -10,7 +10,7 @@ import (
 )
 
 // SpecVersion is the version of the API's spec this release was generated from.
-const SpecVersion = "1.0.0-preview.3"
+const SpecVersion = "1.0.0-preview.4"
 
 // Each operation of the spec: its method, its path and what its answer may be.
 var (
@@ -86,8 +86,8 @@ type CodeSystemLookupParams struct {
 	Property []string
 
 	// DisplayLanguage is `displayLanguage`. Language for the returned display and designations.
-	// Defaults to `en-US`, which also keeps responses small — the upstream otherwise returns ~30
-	// translations per code.
+	// Defaults to `en-US`, which also keeps answers small, since a code can have about 30
+	// translations.
 	DisplayLanguage *string
 
 	// Date is `date`. The date for which the lookup should be valid.
@@ -119,8 +119,8 @@ type CodeSystemValidateCodeParams struct {
 	Version *string
 
 	// Display is `display`. Optional display to check against the code's own display. A mismatch
-	// returns `result: false` with the expected display alongside — which means the code is valid
-	// and only the label differs. Do not read that as an invalid code.
+	// returns `result: false` with the expected display alongside, which means the code is valid and
+	// only the label differs. Do not read that as an invalid code.
 	Display *string
 
 	// DisplayLanguage is `displayLanguage`. Language to use when checking the display.
@@ -771,7 +771,7 @@ type SearchProviderLocationsParams struct {
 	// busy-unavailable, busy-tentative.
 	Status *string
 
-	// Publisher is `publisher`. Filter to a single publisher (source) by slug — e.g. `zocdoc`,
+	// Publisher is `publisher`. Filter to a single publisher (source) by slug, such as `zocdoc` or
 	// `defacto`. See `GET /v1/scheduling/publishers` for the available slugs.
 	Publisher *string
 
@@ -828,7 +828,7 @@ type SearchProviderLocationsParams struct {
 	// no `startAfter`, results start from now. An explicit `startAfter` applies as given either way.
 	IncludePast *bool
 
-	// Limit is `limit`. Page size: the number of provider locations (1–100). Defaults to 25.
+	// Limit is `limit`. Page size: the number of provider locations, from 1 to 100. Defaults to 25.
 	Limit *int
 
 	// Offset is `offset`. Number of provider locations to skip for pagination. Defaults to 0.
@@ -883,7 +883,7 @@ type SearchSlotsParams struct {
 	// busy-unavailable, busy-tentative.
 	Status *string
 
-	// Publisher is `publisher`. Filter to a single publisher (source) by slug — e.g. `zocdoc`,
+	// Publisher is `publisher`. Filter to a single publisher (source) by slug, such as `zocdoc` or
 	// `defacto`. See `GET /v1/scheduling/publishers` for the available slugs.
 	Publisher *string
 
@@ -945,7 +945,7 @@ type SearchSlotsParams struct {
 	// Treat the value as opaque; do not parse it.
 	ProviderLocationKey *string
 
-	// Limit is `limit`. Page size (1–100). Defaults to 25.
+	// Limit is `limit`. Page size, from 1 to 100. Defaults to 25.
 	Limit *int
 
 	// Offset is `offset`. Number of slots to skip for pagination. Defaults to 0.
@@ -1037,8 +1037,8 @@ type ValueSetValidateCodeParams struct {
 	System *string
 
 	// Display is `display`. Optional display to check against the code's own display. A mismatch
-	// returns `result: false` with the expected display alongside — which means the code is valid
-	// and only the label differs. Do not read that as an invalid code.
+	// returns `result: false` with the expected display alongside, which means the code is valid and
+	// only the label differs. Do not read that as an invalid code.
 	Display *string
 
 	// DisplayLanguage is `displayLanguage`. Language to use when checking the display.
@@ -1107,10 +1107,10 @@ func (c *Client) CodeSystemLookupPost(ctx context.Context, body *fhir.Parameters
 
 // CodeSystemValidateCode: Validate a code in a code system.
 //
-// FHIR `CodeSystem/$validate-code`. Asks whether a code exists in a code system — distinct from
-// the ValueSet operation of the same name, which asks about membership of a particular set. On
-// POST, a `coding` or `codeableConcept` parameter may stand in for `url` + `code`; a
-// codeableConcept validates if any of its codings does.
+// FHIR `CodeSystem/$validate-code`. Asks whether a code exists in a code system. The ValueSet
+// operation of the same name asks about membership of a particular set instead. On POST, a `coding`
+// or `codeableConcept` parameter may stand in for `url` + `code`; a codeableConcept validates if
+// any of its codings does.
 //
 // GET /v1/fhir/r4/CodeSystem/$validate-code (codeSystemValidateCode):
 // https://docs.haau3.com/api-reference/terminology/validate-a-code-in-a-code-system
@@ -1121,10 +1121,10 @@ func (c *Client) CodeSystemValidateCode(ctx context.Context, params CodeSystemVa
 
 // CodeSystemValidateCodePost: Validate a code in a code system.
 //
-// FHIR `CodeSystem/$validate-code`. Asks whether a code exists in a code system — distinct from
-// the ValueSet operation of the same name, which asks about membership of a particular set. On
-// POST, a `coding` or `codeableConcept` parameter may stand in for `url` + `code`; a
-// codeableConcept validates if any of its codings does.
+// FHIR `CodeSystem/$validate-code`. Asks whether a code exists in a code system. The ValueSet
+// operation of the same name asks about membership of a particular set instead. On POST, a `coding`
+// or `codeableConcept` parameter may stand in for `url` + `code`; a codeableConcept validates if
+// any of its codings does.
 //
 // POST /v1/fhir/r4/CodeSystem/$validate-code (codeSystemValidateCodePost):
 // https://docs.haau3.com/api-reference/terminology/validate-a-code-in-a-code-system-1
@@ -1154,9 +1154,8 @@ func (c *Client) FHIRBatch(ctx context.Context, body *fhir.Bundle, opts ...Optio
 // FHIRMetadata: Capability statement.
 //
 // FHIR `[base]/metadata`. Returns the `CapabilityStatement` for this service, or a
-// `TerminologyCapabilities` when called with `?mode=terminology` — which lists the code systems
-// served, and names those that are recognised but not served. `mode` is the only parameter it
-// takes.
+// `TerminologyCapabilities` when called with `?mode=terminology`, which lists the code systems
+// served and names those that are recognised but not served. `mode` is the only parameter it takes.
 //
 // GET /v1/fhir/r4/metadata (fhirMetadata):
 // https://docs.haau3.com/api-reference/fhir-base/capability-statement
@@ -1568,7 +1567,7 @@ func (c *Client) ValueSetExpandPost(ctx context.Context, body *fhir.Parameters, 
 //
 // FHIR `ValueSet/$validate-code`. A code that is not in the set is a successful `200` with `result:
 // false`, not an error. On POST, a `coding` or `codeableConcept` parameter may stand in for
-// `system` + `code`; a codeableConcept validates if any of its codings is in the set — useful
+// `system` + `code`; a codeableConcept validates if any of its codings is in the set, which helps
 // when an element carries a vendor-local coding alongside a standard one.
 //
 // GET /v1/fhir/r4/ValueSet/$validate-code (valueSetValidateCode):
@@ -1582,7 +1581,7 @@ func (c *Client) ValueSetValidateCode(ctx context.Context, params ValueSetValida
 //
 // FHIR `ValueSet/$validate-code`. A code that is not in the set is a successful `200` with `result:
 // false`, not an error. On POST, a `coding` or `codeableConcept` parameter may stand in for
-// `system` + `code`; a codeableConcept validates if any of its codings is in the set — useful
+// `system` + `code`; a codeableConcept validates if any of its codings is in the set, which helps
 // when an element carries a vendor-local coding alongside a standard one.
 //
 // POST /v1/fhir/r4/ValueSet/$validate-code (valueSetValidateCodePost):
