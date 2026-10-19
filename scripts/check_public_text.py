@@ -124,7 +124,7 @@ RULES: list[Rule] = [
 NOT_OURS = [
     re.compile(p)
     for p in (
-        r"(^|/)[^/]+_gen\.go$",
+        r"(^|/)[^/]+_gen(_test)?\.go$",
         r"^openapi/openapi\.json$",
         r"^hl7/",
         r"^api\.md$",

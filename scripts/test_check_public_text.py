@@ -72,7 +72,7 @@ class CheckPublicTextTest(unittest.TestCase):
         def not_ours(path: str) -> bool:
             return any(p.search(path) for p in check_public_text.NOT_OURS)
 
-        for path in ["operations_gen.go", "fhir/resources_gen.go", "openapi/openapi.json", "hl7/fhir.schema.json.zip",
+        for path in ["operations_gen.go", "operations_gen_test.go", "fhir/resources_gen.go", "openapi/openapi.json", "hl7/fhir.schema.json.zip",
                      "api.md", "examples/go.sum", "testdata/answer.json"]:
             with self.subTest(path=path):
                 self.assertTrue(not_ours(path))

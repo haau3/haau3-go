@@ -1,0 +1,107 @@
+name: CI
+
+# Tests on both Go releases the SDK supports, and on Windows, where the operating system's own
+# words for a network error differ. Then the generated code against the pinned spec, the lint, the
+# examples as a customer would run them, and known vulnerabilities, every night too, since a new one
+# can be published for code that has not changed.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    - cron: "43 7 * * *"
+      timezone: "America/New_York"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Tests on Go ${{ matrix.go }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        # Every Go the SDK supports: the two the Go project supports (go.mod says go 1.26.0).
+        go: ["1.26", "1.27"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ matrix.go }}
+          check-latest: true
+          cache: false
+      - run: go test -race -count=1 ./...
+
+  windows:
+    name: Tests on Windows
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.27"
+          check-latest: true
+          cache: false
+      - run: go test -count=1 ./...
+
+  checks:
+    name: Generated code, lint and examples
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.27"
+          check-latest: true
+          cache: false
+      - name: The generated code matches the pinned spec
+        run: go run ./internal/cmd/generate -check
+      - name: The SDK requires nothing
+        run: test -z "$(go list -m -f '{{if not .Main}}{{.Path}}{{end}}' all)"
+      - run: go vet ./...
+      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          version: v2.15.0
+      - name: The examples, built and run as a customer's code
+        working-directory: examples
+        run: go vet ./... && go test -count=1 ./...
+      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          version: v2.15.0
+          working-directory: examples
+
+  vulnerabilities:
+    name: Known vulnerabilities
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.27"
+          check-latest: true
+          cache: false
+      - name: The SDK
+        run: go tool -modfile=tools/go.mod govulncheck ./...
+      - name: The examples
+        working-directory: examples
+        run: go tool -modfile=../tools/go.mod govulncheck ./...

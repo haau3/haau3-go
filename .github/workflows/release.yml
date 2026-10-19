@@ -1,0 +1,137 @@
+name: Release
+
+# A Go version is public the moment its tag exists: the module proxy fetches it on first request,
+# and Go's checksum database pins its contents from then on. So nothing here makes a tag until a
+# maintainer approves it.
+#
+# On every push to main, release-please (as haau3-bot) keeps one release PR open with the next
+# version and its changelog, read from the titles of the squash-merged PRs (CONTRIBUTING.md). It
+# never makes a release itself. When the release PR is merged, the version on main has no tag yet,
+# and the `tag` job waits in the `release` environment until a maintainer approves it. It then tests
+# that version once more and makes the tag as the release app, a GitHub App that can only write
+# contents and whose key only this approved job can read: the one identity the repository lets
+# create, move or delete a `v*` tag. haau3-bot cannot make one. The GitHub Release for the tag is
+# then made with this workflow's own token.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release-pr:
+    name: Release PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Mint haau3-bot's token
+        id: token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.HAAU3_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.HAAU3_BOT_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+          # release-please labels its PRs, and labels belong to issues.
+          permission-issues: write
+      - name: release-please
+        id: release
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          token: ${{ steps.token.outputs.token }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          skip-github-release: true
+      # The PR arrives as JSON text and is read in the script: GitHub evaluates a step's env before
+      # its `if`, so fromJSON on the empty output of a run that opened no PR fails the job.
+      - name: Request a review of the release PR
+        if: steps.release.outputs.pr && vars.HAAU3_BOT_REVIEWER
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          PR: ${{ steps.release.outputs.pr }}
+          REVIEWER: ${{ vars.HAAU3_BOT_REVIEWER }}
+        run: gh pr edit "$(jq -r .number <<< "$PR")" --repo "$GITHUB_REPOSITORY" --add-reviewer "$REVIEWER"
+
+  pending:
+    name: A version to tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      # The version main says, when no tag names it yet: a release PR was just merged.
+      - name: The version main says, if untagged
+        id: version
+        run: |
+          version="$(jq -r '."."' .release-please-manifest.json)"
+          if [ "$version" != "0.0.0" ] && ! git rev-parse --verify --quiet "refs/tags/v$version" > /dev/null; then
+            echo "version=$version" >> "$GITHUB_OUTPUT"
+          fi
+
+  tag:
+    name: Tag the release
+    needs: pending
+    if: needs.pending.outputs.version != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: release
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.27"
+          check-latest: true
+          cache: false
+      - name: The version names the SDK's Version
+        env:
+          VERSION: ${{ needs.pending.outputs.version }}
+        run: grep -qxF "const Version = \"$VERSION\" // x-release-please-version" version.go
+      - name: The generated code matches the pinned spec
+        run: go run ./internal/cmd/generate -check
+      - run: go test -count=1 ./...
+      # Minted only now, after this repository's code has run.
+      - name: Mint the release app's token
+        id: token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
+      # On the commit the merged release PR made: the last to change the version's manifest.
+      - name: The tag
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          VERSION: ${{ needs.pending.outputs.version }}
+        run: |
+          sha="$(git log -1 --format=%H -- .release-please-manifest.json)"
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/git/refs" -f ref="refs/tags/v$VERSION" -f sha="$sha" --silent
+      - name: The GitHub Release for the tag
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          token: ${{ github.token }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          skip-github-pull-request: true
+      # The proxy fetches the version now, so the checksum database records it from this tag.
+      - name: The module proxy has it
+        working-directory: ${{ runner.temp }}
+        env:
+          VERSION: ${{ needs.pending.outputs.version }}
+        run: GOPROXY=https://proxy.golang.org go list -m "github.com/haau3/haau3-go@v$VERSION"
