@@ -18,7 +18,8 @@ import (
 
 // writePlans writes the plans sold in state to out, one row each, and says how many.
 func writePlans(ctx context.Context, client *haau3.Client, state string, out io.Writer) (int, error) {
-	first, err := client.SearchInsurancePlan(ctx, haau3.SearchInsurancePlanParams{CoverageAreaState: &state, Count: new(100)})
+	// 50 a page, the most a plan search takes.
+	first, err := client.SearchInsurancePlan(ctx, haau3.SearchInsurancePlanParams{CoverageAreaState: &state, Count: new(50)})
 	if err != nil {
 		return 0, err
 	}
