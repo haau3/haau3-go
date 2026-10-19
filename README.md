@@ -97,6 +97,9 @@ field's doc comment gives the API's own name.
 An agent can read the docs directly:
 
 - [docs.haau3.com/llms.txt](https://docs.haau3.com/llms.txt) lists every docs page as Markdown.
+- [docs.haau3.com/skill.md](https://docs.haau3.com/skill.md) is an
+  [Agent Skill](https://agentskills.io/specification) that says what the platform does and how to call
+  it. `npx skills add https://docs.haau3.com` adds it to your project's coding agents.
 - `https://docs.haau3.com/mcp` is an MCP server that searches the docs. To add it:
   - Claude Code: `claude mcp add --transport http haau3 https://docs.haau3.com/mcp`
   - Codex: `codex mcp add haau3 --url https://docs.haau3.com/mcp`
