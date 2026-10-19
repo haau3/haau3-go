@@ -1,0 +1,12 @@
+# golangci-lint v2: the standard linters (errcheck, govet, ineffassign, staticcheck, unused), plus
+# errorlint, since every error here is matched with errors.As and errors.Is, and bodyclose, since
+# every response body must be closed. Generated code is checked with the rest.
+version: "2"
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - errorlint
+formatters:
+  enable:
+    - gofmt

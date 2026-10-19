@@ -1,0 +1,17 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/v17.6.0/schemas/config.json",
+  "release-type": "go",
+  "package-name": "haau3-go",
+  "include-component-in-tag": false,
+  "include-v-in-tag": true,
+  "bump-minor-pre-major": true,
+  "bump-patch-for-minor-pre-major": true,
+  "pull-request-title-pattern": "Release ${version}",
+  "pull-request-header": "The next release of haau3-go, from the pull requests merged since the last one. Merging this publishes nothing yet: the release job then waits for a maintainer's approval, and makes the tag that publishes the version.",
+  "packages": {
+    ".": {
+      "release-as": "0.1.0",
+      "extra-files": ["version.go"]
+    }
+  }
+}
