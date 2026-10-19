@@ -58,19 +58,19 @@ CMS's National Provider Directory as FHIR R4: practitioners and their roles, org
 | Method | Request | What it does |
 |---|---|---|
 | [`SearchEndpoint(ctx, params)`](https://docs.haau3.com/api-reference/provider-directory/find-endpoints) | `GET /v1/fhir/r4/Endpoint` | Find endpoints |
-| [`ReadEndpoint(ctx, iD)`](https://docs.haau3.com/api-reference/provider-directory/read-an-endpoint) | `GET /v1/fhir/r4/Endpoint/{id}` | Read an Endpoint |
+| [`ReadEndpoint(ctx, id)`](https://docs.haau3.com/api-reference/provider-directory/read-an-endpoint) | `GET /v1/fhir/r4/Endpoint/{id}` | Read an Endpoint |
 | [`SearchHealthcareService(ctx, params)`](https://docs.haau3.com/api-reference/provider-directory/find-healthcare-services) | `GET /v1/fhir/r4/HealthcareService` | Find healthcare services |
-| [`ReadHealthcareService(ctx, iD)`](https://docs.haau3.com/api-reference/provider-directory/read-a-healthcareservice) | `GET /v1/fhir/r4/HealthcareService/{id}` | Read a HealthcareService |
+| [`ReadHealthcareService(ctx, id)`](https://docs.haau3.com/api-reference/provider-directory/read-a-healthcareservice) | `GET /v1/fhir/r4/HealthcareService/{id}` | Read a HealthcareService |
 | [`SearchLocation(ctx, params)`](https://docs.haau3.com/api-reference/provider-directory/find-practice-locations) | `GET /v1/fhir/r4/Location` | Find practice locations |
-| [`ReadLocation(ctx, iD)`](https://docs.haau3.com/api-reference/provider-directory/read-a-location) | `GET /v1/fhir/r4/Location/{id}` | Read a Location |
+| [`ReadLocation(ctx, id)`](https://docs.haau3.com/api-reference/provider-directory/read-a-location) | `GET /v1/fhir/r4/Location/{id}` | Read a Location |
 | [`SearchOrganization(ctx, params)`](https://docs.haau3.com/api-reference/provider-directory/find-organizations-payers-and-networks) | `GET /v1/fhir/r4/Organization` | Find organizations, payers and networks |
-| [`ReadOrganization(ctx, iD)`](https://docs.haau3.com/api-reference/provider-directory/read-an-organization) | `GET /v1/fhir/r4/Organization/{id}` | Read an Organization |
+| [`ReadOrganization(ctx, id)`](https://docs.haau3.com/api-reference/provider-directory/read-an-organization) | `GET /v1/fhir/r4/Organization/{id}` | Read an Organization |
 | [`SearchOrganizationAffiliation(ctx, params)`](https://docs.haau3.com/api-reference/provider-directory/find-the-organizations-in-a-network) | `GET /v1/fhir/r4/OrganizationAffiliation` | Find the organizations in a network |
-| [`ReadOrganizationAffiliation(ctx, iD)`](https://docs.haau3.com/api-reference/provider-directory/read-an-organizationaffiliation) | `GET /v1/fhir/r4/OrganizationAffiliation/{id}` | Read an OrganizationAffiliation |
+| [`ReadOrganizationAffiliation(ctx, id)`](https://docs.haau3.com/api-reference/provider-directory/read-an-organizationaffiliation) | `GET /v1/fhir/r4/OrganizationAffiliation/{id}` | Read an OrganizationAffiliation |
 | [`SearchPractitioner(ctx, params)`](https://docs.haau3.com/api-reference/provider-directory/find-a-practitioner-by-npi-or-name) | `GET /v1/fhir/r4/Practitioner` | Find a practitioner by NPI or name |
-| [`ReadPractitioner(ctx, iD)`](https://docs.haau3.com/api-reference/provider-directory/read-a-practitioner) | `GET /v1/fhir/r4/Practitioner/{id}` | Read a Practitioner |
+| [`ReadPractitioner(ctx, id)`](https://docs.haau3.com/api-reference/provider-directory/read-a-practitioner) | `GET /v1/fhir/r4/Practitioner/{id}` | Read a Practitioner |
 | [`SearchPractitionerRole(ctx, params)`](https://docs.haau3.com/api-reference/provider-directory/find-practitioner-roles) | `GET /v1/fhir/r4/PractitionerRole` | Find practitioner roles |
-| [`ReadPractitionerRole(ctx, iD)`](https://docs.haau3.com/api-reference/provider-directory/read-a-practitionerrole) | `GET /v1/fhir/r4/PractitionerRole/{id}` | Read a PractitionerRole |
+| [`ReadPractitionerRole(ctx, id)`](https://docs.haau3.com/api-reference/provider-directory/read-a-practitionerrole) | `GET /v1/fhir/r4/PractitionerRole/{id}` | Read a PractitionerRole |
 
 ## Questionnaires
 
@@ -79,7 +79,7 @@ FHIR Questionnaire, served as its source publishes it. This service holds copies
 | Method | Request | What it does |
 |---|---|---|
 | [`SearchQuestionnaire(ctx, params)`](https://docs.haau3.com/api-reference/questionnaires/list-or-find-a-questionnaire) | `GET /v1/fhir/r4/Questionnaire` | List or find a questionnaire |
-| [`ReadQuestionnaire(ctx, iD)`](https://docs.haau3.com/api-reference/questionnaires/read-a-questionnaire) | `GET /v1/fhir/r4/Questionnaire/{id}` | Read a questionnaire |
+| [`ReadQuestionnaire(ctx, id)`](https://docs.haau3.com/api-reference/questionnaires/read-a-questionnaire) | `GET /v1/fhir/r4/Questionnaire/{id}` | Read a questionnaire |
 
 ## Plan Benefits
 
@@ -89,8 +89,8 @@ FHIR InsurancePlan: what a Medicare Advantage or ACA Marketplace plan covers and
 |---|---|---|
 | [`SearchInsurancePlan(ctx, params)`](https://docs.haau3.com/api-reference/plan-benefits/find-a-plan) | `GET /v1/fhir/r4/InsurancePlan` | Find a plan |
 | [`ListInsurancePlanCounties(ctx, params)`](https://docs.haau3.com/api-reference/plan-benefits/list-a-states-counties) | `GET /v1/fhir/r4/InsurancePlan/$counties` | List a state's counties |
-| [`ReadInsurancePlan(ctx, iD)`](https://docs.haau3.com/api-reference/plan-benefits/read-a-plan) | `GET /v1/fhir/r4/InsurancePlan/{id}` | Read a plan |
-| [`CheckInsurancePlanNetwork(ctx, iD, params)`](https://docs.haau3.com/api-reference/plan-benefits/check-providers-against-a-plans-network) | `GET /v1/fhir/r4/InsurancePlan/{id}/$in-network` | Check providers against a plan's network |
+| [`ReadInsurancePlan(ctx, id)`](https://docs.haau3.com/api-reference/plan-benefits/read-a-plan) | `GET /v1/fhir/r4/InsurancePlan/{id}` | Read a plan |
+| [`CheckInsurancePlanNetwork(ctx, id, params)`](https://docs.haau3.com/api-reference/plan-benefits/check-providers-against-a-plans-network) | `GET /v1/fhir/r4/InsurancePlan/{id}/$in-network` | Check providers against a plan's network |
 
 ## MedList
 

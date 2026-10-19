@@ -55,7 +55,7 @@ func fieldType(kind string, required bool) string {
 // methodArgs is a method's arguments after ctx, as declared and as passed on.
 func (o operation) methodArgs() (declared []string, names []string) {
 	for _, p := range o.PathParams {
-		name := strings.ToLower(goName(p)[:1]) + goName(p)[1:]
+		name := localName(p)
 		declared = append(declared, name+" string")
 		names = append(names, name)
 	}
