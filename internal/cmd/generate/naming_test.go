@@ -25,6 +25,14 @@ func TestGoName(t *testing.T) {
 	}
 }
 
+func TestLocalName(t *testing.T) {
+	for in, want := range map[string]string{"id": "id", "planId": "planID", "fhirVersion": "fhirVersion", "url": "url"} {
+		if got := localName(in); got != want {
+			t.Errorf("localName(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
 func TestParamName(t *testing.T) {
 	for in, want := range map[string]string{
 		"_count":                   "Count",
