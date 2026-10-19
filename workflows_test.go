@@ -109,7 +109,7 @@ func TestRegenerationMintsTheTokenAfterTheGeneratorAndChecksOasdiff(t *testing.T
 	}
 }
 
-// Only the approved job makes a tag, and with this workflow's own token, never haau3-bot's.
+// Only the approved job makes a tag, as the release app, never as haau3-bot.
 func TestATagIsMadeOnlyInTheApprovedJob(t *testing.T) {
 	text := workflows(t)["release.yml"]
 	prJob, rest, _ := strings.Cut(text, "  pending:")
@@ -118,10 +118,18 @@ func TestATagIsMadeOnlyInTheApprovedJob(t *testing.T) {
 	if !strings.Contains(prJob, "skip-github-release: true") || strings.Contains(prJob, "\n    permissions:") {
 		t.Error("the release PR job can make a release")
 	}
-	for _, want := range []string{"environment: release", "contents: write", "token: ${{ github.token }}", "skip-github-pull-request: true", "go run ./internal/cmd/generate -check", "go test"} {
+	for _, want := range []string{"environment: release", "contents: write", "token: ${{ github.token }}", "skip-github-pull-request: true",
+		"go run ./internal/cmd/generate -check", "go test", "vars.RELEASE_APP_CLIENT_ID", "secrets.RELEASE_APP_PRIVATE_KEY", `ref="refs/tags/v$VERSION"`} {
 		if !strings.Contains(tagJob, want) {
 			t.Errorf("the tag job lacks %q", want)
 		}
+	}
+	// The release app's token is minted after this repository's code has run, and only here.
+	if strings.Index(tagJob, "go test") > strings.Index(tagJob, "RELEASE_APP_PRIVATE_KEY") || strings.Count(text, "RELEASE_APP_PRIVATE_KEY") != 1 {
+		t.Error("the release app's key is reachable before the tests, or outside the approved job")
+	}
+	if strings.Index(tagJob, `ref="refs/tags/v$VERSION"`) > strings.Index(tagJob, "skip-github-pull-request") {
+		t.Error("the GitHub Release is made before its tag")
 	}
 	if strings.Contains(tagJob, "HAAU3_BOT") || len(contentsWrite.FindAllString(text, -1)) != 1 || strings.Count(text, "environment:") != 1 {
 		t.Error("something but the approved job can write")

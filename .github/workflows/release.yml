@@ -7,9 +7,11 @@ name: Release
 # On every push to main, release-please (as haau3-bot) keeps one release PR open with the next
 # version and its changelog, read from the titles of the squash-merged PRs (CONTRIBUTING.md). It
 # never makes a release itself. When the release PR is merged, the version on main has no tag yet,
-# and the `tag` job waits in the `release` environment until a maintainer approves it. It then
-# checks that version once more, and makes the GitHub Release and its tag with this workflow's own
-# token, the one identity the repository lets create a `v*` tag. haau3-bot cannot make one.
+# and the `tag` job waits in the `release` environment until a maintainer approves it. It then tests
+# that version once more and makes the tag as the release app, a GitHub App that can only write
+# contents and whose key only this approved job can read: the one identity the repository lets
+# create, move or delete a `v*` tag. haau3-bot cannot make one. The GitHub Release for the tag is
+# then made with this workflow's own token.
 
 on:
   push:
@@ -90,6 +92,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
@@ -103,7 +106,23 @@ jobs:
       - name: The generated code matches the pinned spec
         run: go run ./internal/cmd/generate -check
       - run: go test -count=1 ./...
-      - name: The GitHub Release and its tag
+      # Minted only now, after this repository's code has run.
+      - name: Mint the release app's token
+        id: token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
+      # On the commit the merged release PR made: the last to change the version's manifest.
+      - name: The tag
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          VERSION: ${{ needs.pending.outputs.version }}
+        run: |
+          sha="$(git log -1 --format=%H -- .release-please-manifest.json)"
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/git/refs" -f ref="refs/tags/v$VERSION" -f sha="$sha" --silent
+      - name: The GitHub Release for the tag
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
           token: ${{ github.token }}

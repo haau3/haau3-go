@@ -97,8 +97,9 @@ The version lives in one place, `Version` in `version.go`, which release-please 
 is public the moment its tag exists: the module proxy fetches it on first request, and Go's checksum
 database pins its contents from then on, so a tag is never moved or remade. Merging the release PR
 publishes nothing. `release.yml` then waits in the `release` environment until a maintainer approves
-it, tests that version once more, and makes the GitHub Release and its `v` tag, with the workflow's
-own token, the one identity that may create a `v*` tag here.
+it, tests that version once more, and makes the `v` tag as the release app: a GitHub App that can
+only write contents, whose key only that approved job can read, and the one identity that may
+create, move or delete a `v*` tag here. The GitHub Release for the tag follows.
 
 ## Tests
 
