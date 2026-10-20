@@ -1,6 +1,7 @@
 package haau3
 
 import (
+	"fmt"
 	"os"
 	"reflect"
 	"regexp"
@@ -148,7 +149,7 @@ func TestAPIMDListsEveryOperationOnceWithItsDocsPage(t *testing.T) {
 	if !slices.Equal(names, want) || len(pages) != len(rows) {
 		t.Errorf("api.md lists %v", names)
 	}
-	if !strings.Contains(api, "(`"+SpecVersion+"`)") || !strings.Contains(api, "except `FHIRBatch` and `ReconcileMedications`:\n29 of the 36") {
+	if !strings.Contains(api, "(`"+SpecVersion+"`)") || !strings.Contains(api, "except "+namedInCode(notInABatch)+":\n") || !strings.Contains(api, fmt.Sprintf(" of the %d. ", len(rows))) {
 		t.Error("api.md's opening is not what the spec says")
 	}
 }
@@ -160,4 +161,16 @@ func TestNoEmDashInWhatThisRepositoryWrites(t *testing.T) {
 			t.Errorf("%s has an em or en dash", name)
 		}
 	}
+}
+
+// namedInCode is `a`, `b` and `c`, as api.md names the operations a batch cannot carry.
+func namedInCode(names []string) string {
+	quoted := make([]string, len(names))
+	for i, n := range names {
+		quoted[i] = "`" + n + "`"
+	}
+	if len(quoted) < 2 {
+		return strings.Join(quoted, "")
+	}
+	return strings.Join(quoted[:len(quoted)-1], ", ") + " and " + quoted[len(quoted)-1]
 }

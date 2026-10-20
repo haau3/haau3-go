@@ -47,9 +47,14 @@ go generate ./...
 CI generates again (`go run ./internal/cmd/generate -check`) and fails if the result differs from
 what is committed.
 
-`Calls` offers every operation on the FHIR base but the ones a batch cannot carry, which the
-generator names in `notInABatch` with the spec's own words. It stops if one of those leaves the
-spec, or if two names would be one in Go.
+`Calls` offers every operation on the FHIR base but the ones a batch cannot carry. The spec marks
+each of those `x-haau3-batchable: false`, and the generator reads that field rather than keeping a
+list. It stops on any other value of the field, or the field outside the FHIR base, or if two names
+would be one in Go.
+
+A sample whose request body nests resources, a Bundle's entries or a Parameters resource's parts,
+reads that body from `request.json`, and says what the file holds in the words of the spec's
+example label.
 
 The FHIR types come from HL7's own schema rather than a Go FHIR package, because none is both
 maintained and widely used for R4. A place that holds any resource, such as `Bundle.entry.resource`,

@@ -351,9 +351,10 @@ func TestEachSampleRunsAsWritten(t *testing.T) {
 	}
 	for _, o := range ops {
 		t.Run(o.id, func(t *testing.T) {
+			// A sample whose body nests resources reads it from request.json; any other ignores the file.
 			files := map[string]any{}
-			if o.id == "reconcileMedications" {
-				files["records.json"] = o.body
+			if o.body != nil {
+				files["request.json"] = o.body
 			}
 			out, err := run(o.id, files)
 			if err != nil {

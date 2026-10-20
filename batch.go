@@ -139,7 +139,8 @@ const batchName = "POST /v1/fhir/r4"
 //
 // The API takes up to 100 entries in up to 1 MiB and gives a batch 60 seconds, so send a longer
 // list as several batches. Every operation on the FHIR base can go in a batch except FHIRBatch and
-// ReconcileMedications. WithResponseInfo gives the batch's own request id.
+// the ones the spec marks x-haau3-batchable: false, which api.md names. WithResponseInfo gives the
+// batch's own request id.
 func (c *Client) Batch(ctx context.Context, entries []Entry, opts ...Option) error {
 	err := c.batch(ctx, entries, opts)
 	if err != nil {

@@ -10,7 +10,7 @@ import (
 )
 
 // SpecVersion is the version of the API's spec this release was generated from.
-const SpecVersion = "1.0.0-preview.4"
+const SpecVersion = "1.0.0-preview.6"
 
 // Each operation of the spec: its method, its path and what its answer may be.
 var (
@@ -25,6 +25,7 @@ var (
 	opListPublishers                = operation{id: "listPublishers", method: "GET", path: "/v1/scheduling/publishers"}
 	opListServiceTypes              = operation{id: "listServiceTypes", method: "GET", path: "/v1/scheduling/service-types"}
 	opListSpecialties               = operation{id: "listSpecialties", method: "GET", path: "/v1/scheduling/specialties"}
+	opProcessMessage                = operation{id: "processMessage", method: "POST", path: "/v1/fhir/r4/$process-message", expects: []string{"Bundle"}, bodyTypes: []string{"Bundle"}}
 	opReadEndpoint                  = operation{id: "readEndpoint", method: "GET", path: "/v1/fhir/r4/Endpoint/{id}", expects: []string{"Endpoint"}}
 	opReadHealthcareService         = operation{id: "readHealthcareService", method: "GET", path: "/v1/fhir/r4/HealthcareService/{id}", expects: []string{"HealthcareService"}}
 	opReadInsurancePlan             = operation{id: "readInsurancePlan", method: "GET", path: "/v1/fhir/r4/InsurancePlan/{id}", expects: []string{"InsurancePlan"}}
@@ -1136,13 +1137,14 @@ func (c *Client) CodeSystemValidateCodePost(ctx context.Context, body *fhir.Para
 //
 // POST a FHIR `Bundle` with `type: batch` to send several requests in one round trip. Each entry's
 // `request.url` is relative to this base and may be any read, search or operation of any service on
-// it, except `$reconcile-medications`, which a batch refuses by name. Entries are independent: one
-// that fails, such as a lookup of an unknown code, does not fail the others, and each carries its
-// own status in the `batch-response`. For example, a batch of 50 terminology lookups measured about
-// 4.8 ms per code, against 181 ms each when sent one at a time. Transaction bundles are not
-// accepted: nothing on this base writes, so all or nothing would only turn one bad entry into a
-// wholly failed request. A batch carries at most 100 entries in at most 1 MiB, and has 60 seconds:
-// an entry still running then answers `504` inside the `200`. See
+// it, except `$reconcile-medications` and `$process-message`, which a batch refuses by name: each
+// is marked `x-haau3-batchable: false`, the one place this document says an operation cannot go in
+// a batch. Entries are independent: one that fails, such as a lookup of an unknown code, does not
+// fail the others, and each carries its own status in the `batch-response`. For example, a batch of
+// 50 terminology lookups measured about 4.8 ms per code, against 181 ms each when sent one at a
+// time. Transaction bundles are not accepted: nothing on this base writes, so all or nothing would
+// only turn one bad entry into a wholly failed request. A batch carries at most 100 entries in at
+// most 1 MiB, and has 60 seconds: an entry still running then answers `504` inside the `200`. See
 // https://docs.haau3.com/errors#limits.
 //
 // POST /v1/fhir/r4 (fhirBatch):
@@ -1218,6 +1220,33 @@ func (c *Client) ListServiceTypes(ctx context.Context, params ListServiceTypesPa
 func (c *Client) ListSpecialties(ctx context.Context, params ListSpecialtiesParams, opts ...Option) (*ListSpecialtiesResponse, error) {
 	query, err := params.query()
 	return call(ctx, c, &opListSpecialties, nil, query, err, nil, decodeAs[ListSpecialtiesResponse], opts)
+}
+
+// ProcessMessage: Check what a medication costs (pharmacy benefit check).
+//
+// FHIR system-level operation `$process-message`, as the CARIN Consumer Real-Time Pharmacy Benefit
+// Check (STU2 ballot, `2.0.0-ballot`) specifies. POST a FHIR `Bundle` of type `message` whose first
+// entry is a MessageHeader with one of two events. `rtpbc-request-non-phi` asks for a medication's
+// price without patient details: a Claim naming the product (an NDC of 11 digits with no dashes, or
+// an RxNorm code) and the quantity, with the patient and the coverage masked, and a pharmacy or one
+// or more ZIP codes. `rtpbc-request` asks what a medication would cost a member under their
+// coverage: the member's Patient and Coverage, with the payer's identifier in `payor.identifier`,
+// the prescription and its prescriber, and a pharmacy. The answer is a `message` Bundle whose
+// MessageHeader answers the request's, with one ClaimResponse that carries either prices and
+// coverage in `item` or the reason there are none in `error`, and for a member's request the
+// request's Patient as it was sent. A check no connected source can answer carries
+// `no-responder-for-coverage` or `no-price-source` from
+// `https://haau3.com/fhir/CodeSystem/pharmacy-benefits-processing-code`. A price is an estimate;
+// the pharmacy confirms the price. A member's request receives patient data, so send it only under
+// an executed agreement. Nothing a request carries is stored or logged, apart from the request's
+// ids, and every answer is sent with `Cache-Control: no-store`. The operation takes no parameters
+// and is not offered inside a batch. The contract is published at
+// https://fhir.haau3.com/pharmacy-benefits.html.
+//
+// POST /v1/fhir/r4/$process-message (processMessage):
+// https://docs.haau3.com/api-reference/pharmacy-benefits/check-what-a-medication-costs-pharmacy-benefit-check
+func (c *Client) ProcessMessage(ctx context.Context, body *fhir.Bundle, opts ...Option) (*fhir.Bundle, error) {
+	return call(ctx, c, &opProcessMessage, nil, nil, nil, bodyOf(body), decodeAs[fhir.Bundle], opts)
 }
 
 // ReadEndpoint: Read an Endpoint.
@@ -1761,5 +1790,6 @@ func (BatchCalls) ValueSetValidateCodePost(body *fhir.Parameters) *Call[*fhir.Pa
 	return newCall(&opValueSetValidateCodePost, nil, nil, nil, bodyOf(body), decodeAs[fhir.Parameters])
 }
 
-// notInABatch are the operations a batch cannot carry.
-var notInABatch = []string{"FHIRBatch", "ReconcileMedications"}
+// notInABatch are the operations a batch cannot carry: the batch itself, and the ones the spec
+// marks x-haau3-batchable: false.
+var notInABatch = []string{"FHIRBatch", "ProcessMessage", "ReconcileMedications"}

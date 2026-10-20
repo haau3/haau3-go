@@ -10,8 +10,8 @@ import (
 )
 
 func TestEachOperationSendsItsExampleAndReturnsItsAnswer(t *testing.T) {
-	if len(specExamples) != 36 {
-		t.Fatalf("the spec has %d operations; this release was generated from 36", len(specExamples))
+	if len(specExamples) != 37 {
+		t.Fatalf("the spec has %d operations; this release was generated from 37", len(specExamples))
 	}
 	for _, ex := range specExamples {
 		t.Run(ex.id, func(t *testing.T) {
