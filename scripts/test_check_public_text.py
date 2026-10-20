@@ -58,6 +58,13 @@ class CheckPublicTextTest(unittest.TestCase):
         )
         self.assertEqual(found(text), [])
 
+    def test_it_allows_a_haau3_name_the_published_spec_carries_and_no_other(self) -> None:
+        self.assertIn("haau3-insurance-plan", check_public_text.SPEC_NAMES)
+        self.assertEqual(found("the profile haau3-insurance-plan, the field x-haau3-batchable"), [])
+        # A name the spec carries only as part of a longer one is not allowed by it (the control).
+        self.assertNotIn("haau3-insurance", check_public_text.SPEC_NAMES)
+        self.assertEqual(found("it runs in haau3-insurance"), ["haau3-insurance"])
+
     def test_a_changelog_link_only_to_this_repository(self) -> None:
         self.assertEqual(found("([#5](https://github.com/haau3/haau3-go/issues/5))"), [])
         self.assertEqual(found("([#5](https://github.com/haau3/haau3-python/issues/5))"), ["#5"])
