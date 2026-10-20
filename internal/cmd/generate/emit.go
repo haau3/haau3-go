@@ -212,10 +212,10 @@ func emitOperations(s *spec) string {
 		fmt.Fprintf(&b, "%s\treturn newCall(&op%s, %s, %s, %s, %s)\n}\n\n", prelude, o.Name, pathValues, query, body, o.decoder())
 	}
 	excluded := []string{}
-	for _, id := range notInABatch {
+	for _, id := range s.notInABatch() {
 		excluded = append(excluded, goName(id))
 	}
-	fmt.Fprintf(&b, "// notInABatch are the operations a batch cannot carry.\nvar notInABatch = %#v\n", excluded)
+	fmt.Fprintf(&b, "// notInABatch are the operations a batch cannot carry: the batch itself, and the ones the spec\n// marks x-haau3-batchable: false.\nvar notInABatch = %#v\n", excluded)
 	return b.String()
 }
 
@@ -489,7 +489,7 @@ func apiMD(s *spec) string {
 		}
 	}
 	var excluded []string
-	for _, id := range notInABatch {
+	for _, id := range s.notInABatch() {
 		excluded = append(excluded, "`"+goName(id)+"`")
 	}
 	var b strings.Builder
@@ -502,7 +502,7 @@ then its query parameters as a struct, ` + "`<Method>Params`" + `, whose fields 
 Go's style (` + "`name:contains` is `NameContains`, `_count` is `Count`" + `), each documented with both.
 Every method also takes the per-call options ` + "`WithTimeout`, `WithMaxRetries`, `WithCorrelationID`,\n`WithHeader`, `WithAPIKey` and `WithResponseInfo`" + `, which gives the request id and timing too.
 `)
-	fmt.Fprintf(&b, "\n`Client.Batch` sends several of these as one request, each with its own answer or error, from the\nentries `haau3.Calls` makes. It takes every operation on the FHIR base except %s:\n%d of the %d. See the README's \"Several requests in one\".\n", strings.Join(excluded, " and "), batchable, len(s.Operations))
+	fmt.Fprintf(&b, "\n`Client.Batch` sends several of these as one request, each with its own answer or error, from the\nentries `haau3.Calls` makes. It takes every operation on the FHIR base except %s:\n%d of the %d. See the README's \"Several requests in one\".\n", named(excluded), batchable, len(s.Operations))
 	for _, tag := range tags {
 		fmt.Fprintf(&b, "\n## %s\n\n%s\n\n| Method | Request | What it does |\n|---|---|---|\n", tag, desc[tag])
 		for _, o := range byTag[tag] {

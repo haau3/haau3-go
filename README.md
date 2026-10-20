@@ -79,6 +79,10 @@ phq9, err := client.ReadQuestionnaire(ctx, "44249-1")
 plan, err := client.ReadInsurancePlan(ctx, "H2406-013-000")
 network, err := client.CheckInsurancePlanNetwork(ctx, "H3359-038-000", haau3.CheckInsurancePlanNetworkParams{NPI: []string{"1518929058"}})
 
+// Pharmacy Benefits: what a medication would cost, as the CARIN pharmacy benefit check, from a FHIR
+// message Bundle. A member's check carries patient data, so send it only under an executed agreement.
+checked, err := client.ProcessMessage(ctx, message)
+
 // MedList: one reconciled medication list from one patient's FHIR medication records. It receives
 // patient data, so send it only under an executed agreement.
 reconciled, err := client.ReconcileMedications(ctx, records)
@@ -273,7 +277,8 @@ fails is not retried. The batch itself is retried, and fails, as any call does: 
 returns its error, and so does each entry's `Result`. `WithResponseInfo` gives the batch's own
 request id. The API takes up to 100 entries in up to 1 MiB and gives a batch 60 seconds, so send a
 longer list as several batches. Every operation on the FHIR base can go in a batch except
-`FHIRBatch` and `ReconcileMedications`.
+`FHIRBatch`, `ProcessMessage` and `ReconcileMedications`, which the spec marks
+`x-haau3-batchable: false`.
 
 To send a batch `Bundle` you built yourself, `FHIRBatch` takes it and returns the `batch-response`
 as it is.

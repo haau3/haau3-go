@@ -8,10 +8,11 @@ import (
 	"strings"
 )
 
-// notInABatch are the operations a batch cannot carry: the batch itself, and
-// `$reconcile-medications`, which the spec says a batch refuses by name. Everything else on the
-// FHIR base can go in one.
-var notInABatch = []string{"fhirBatch", "reconcileMedications"}
+// batchableField is the extension the spec sets to false on each operation the API refuses inside a
+// batch by name. Every other operation under the FHIR base can go in a batch; the batch itself sits
+// at the base, not under it. The spec defines the field only as false, and only on the FHIR base, so
+// anything else stops the generator rather than being guessed at.
+const batchableField = "x-haau3-batchable"
 
 const fhirBase = "/v1/fhir/r4"
 
@@ -46,8 +47,10 @@ type operation struct {
 	Answer      string   // the Go type of the answer: `*fhir.InsurancePlan`, `*SearchSlotsResponse`, `fhir.Resource`
 	Expects     []string // the FHIR resource types a 200 may be; empty for Scheduling's answers
 	Batchable   bool
+	Refused     bool            // the spec marks it x-haau3-batchable: false
 	Example     json.RawMessage // the spec's example answer
 	BodyExample json.RawMessage // the spec's example request body
+	BodyLabel   string          // the label the spec gives that example
 }
 
 func (o operation) ParamsType() string { return o.Name + "Params" }
@@ -166,6 +169,30 @@ func (s *spec) firstExample(media object, at pointer) (json.RawMessage, error) {
 	return json.Marshal(examples[keys[0]].(object)["value"])
 }
 
+// firstExampleLabel is the summary of a media type's first example, in the spec's own order.
+func (s *spec) firstExampleLabel(media object, at pointer) string {
+	examples, _ := media["examples"].(object)
+	keys := s.order.keys(at.to("examples"), examples)
+	if len(keys) == 0 {
+		return ""
+	}
+	label, _ := examples[keys[0]].(object)["summary"].(string)
+	return label
+}
+
+// notInABatch is the batch itself, then every operation the spec marks x-haau3-batchable: false.
+func (s *spec) notInABatch() []string {
+	var ids []string
+	for _, o := range s.Operations {
+		if o.Path == fhirBase && o.Method == "POST" {
+			ids = append([]string{o.ID}, ids...)
+		} else if o.Refused {
+			ids = append(ids, o.ID)
+		}
+	}
+	return ids
+}
+
 func (s *spec) readOperations() error {
 	docs := docsURLs{}
 	paths := at(s.doc, "paths").(object)
@@ -194,15 +221,13 @@ func (s *spec) readOperations() error {
 		summary := cmp.Or(op.Summary, op.ID)
 		op.Docs = docs.url(op.Tag, summary)
 	}
-	for _, id := range notInABatch {
-		if !slices.ContainsFunc(s.Operations, func(o operation) bool { return o.ID == id }) {
-			return fmt.Errorf("%s is no longer in the spec: review notInABatch", id)
-		}
+	if !slices.ContainsFunc(s.Operations, func(o operation) bool { return o.Path == fhirBase && o.Method == "POST" }) {
+		return fmt.Errorf("the spec has no batch at POST %s", fhirBase)
 	}
 	names := map[string]string{}
 	for i := range s.Operations {
 		op := &s.Operations[i]
-		op.Batchable = strings.HasPrefix(op.Path, fhirBase+"/") && !slices.Contains(notInABatch, op.ID)
+		op.Batchable = strings.HasPrefix(op.Path, fhirBase+"/") && !op.Refused
 		if other, ok := names[op.Name]; ok {
 			return fmt.Errorf("%s and %s are both %s in Go", other, op.ID, op.Name)
 		}
@@ -220,6 +245,15 @@ func (s *spec) readOperation(path, method string, op object, here pointer) (oper
 	o.Tag = "Other"
 	if tags := asList(op["tags"]); len(tags) > 0 {
 		o.Tag = tags[0].(string)
+	}
+	if mark, ok := op[batchableField]; ok {
+		if mark != false {
+			return o, fmt.Errorf("%s carries %s: %v, where the spec defines only false", id, batchableField, mark)
+		}
+		if !strings.HasPrefix(path, fhirBase+"/") {
+			return o, fmt.Errorf("%s is marked %s: false, but is not on the FHIR base", id, batchableField)
+		}
+		o.Refused = true
 	}
 	fields := map[string]string{}
 	for _, raw := range asList(op["parameters"]) {
@@ -276,6 +310,7 @@ func (s *spec) readOperation(path, method string, op object, here pointer) (oper
 		if o.BodyExample, err = s.firstExample(media, here.to("requestBody", "content", mediaType)); err != nil {
 			return o, err
 		}
+		o.BodyLabel = s.firstExampleLabel(media, here.to("requestBody", "content", mediaType))
 		schema := media["schema"].(object)
 		if ref, ok := schema["$ref"].(string); ok {
 			if o.Body, err = s.componentType(ref); err != nil {

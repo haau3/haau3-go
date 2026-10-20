@@ -11,10 +11,56 @@ import (
 	"strings"
 )
 
-// bodyFromFile names the operations whose example body is too long to show: the sample reads it
-// from a file instead. Only MedList's, a whole patient's records.
-var bodyFromFile = map[string][2]string{
-	"reconcileMedications": {"records.json", "one patient's FHIR medication records"},
+// bodyFile is where a sample reads a body that nests resources: a Bundle's entries or a Parameters
+// resource's parts. Such a body is too long to show in a sample, and the samples do not write a
+// resource inside another; read from a file, it is decoded as what it is.
+const bodyFile = "request.json"
+
+// nestsResources is whether an example body holds a resource inside it, below its own level.
+func nestsResources(example json.RawMessage) bool {
+	var v any
+	if json.Unmarshal(example, &v) != nil {
+		return false
+	}
+	var walk func(v any, depth int) bool
+	walk = func(v any, depth int) bool {
+		switch x := v.(type) {
+		case []any:
+			for _, item := range x {
+				if walk(item, depth+1) {
+					return true
+				}
+			}
+		case map[string]any:
+			if _, ok := x["resourceType"].(string); ok && depth > 0 {
+				return true
+			}
+			for _, item := range x {
+				if walk(item, depth+1) {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	return walk(v, 0)
+}
+
+// asPhrase is an example's label as it reads after "holds": "A pharmacy ..." and "One patient's ..."
+// read on in lower case, and an acronym such as "FHIR" stays as it is.
+func asPhrase(label string) string {
+	if len(label) > 1 && label[0] >= 'A' && label[0] <= 'Z' && !(label[1] >= 'A' && label[1] <= 'Z') {
+		return strings.ToLower(label[:1]) + label[1:]
+	}
+	return label
+}
+
+// named is `a`, `b` and `c`.
+func named(quoted []string) string {
+	if len(quoted) < 2 {
+		return strings.Join(quoted, "")
+	}
+	return strings.Join(quoted[:len(quoted)-1], ", ") + " and " + quoted[len(quoted)-1]
 }
 
 // lineWidth is where a composite literal is opened over several lines.
@@ -25,11 +71,6 @@ const lineWidth = 100
 // program that sends the operation's example request from the spec and prints one field of the
 // answer. samples_test.go builds and runs every one, as it is written, against a stand-in API.
 func emitSamples(s *spec, hl7 *fhirSchema) ([]byte, error) {
-	for id := range bodyFromFile {
-		if !slices.ContainsFunc(s.Operations, func(o operation) bool { return o.ID == id && o.Body != "" }) {
-			return nil, fmt.Errorf("%s no longer takes a body: review bodyFromFile", id)
-		}
-	}
 	type sample struct {
 		Lang   string `json:"lang"`
 		Label  string `json:"label"`
@@ -100,16 +141,30 @@ func goSample(s *spec, hl7 *fhirSchema, o operation) (string, error) {
 		for _, v := range o.PathExample {
 			args = append(args, strconv.Quote(v))
 		}
-		if file, ok := bodyFromFile[o.ID]; ok {
+		if o.Body != "" && nestsResources(o.BodyExample) {
+			if o.BodyLabel == "" {
+				return "", fmt.Errorf("a body read from a file needs its example's summary, to say what the file holds")
+			}
 			imports = append(imports, "os")
 			module = append(module, `"github.com/haau3/haau3-go/fhir"`)
 			body = append(body,
-				fmt.Sprintf("data, err := os.ReadFile(%q) // %s", file[0], file[1]),
-				"if err != nil {", "\tlog.Fatal(err)", "}",
-				"records, err := fhir.DecodeResource(data)",
+				fmt.Sprintf("data, err := os.ReadFile(%q) // %s", bodyFile, asPhrase(o.BodyLabel)),
 				"if err != nil {", "\tlog.Fatal(err)", "}",
 			)
-			args = append(args, "records")
+			switch {
+			case o.Body == "fhir.Resource":
+				body = append(body, "body, err := fhir.DecodeResource(data)", "if err != nil {", "\tlog.Fatal(err)", "}")
+				args = append(args, "body")
+			case strings.HasPrefix(o.Body, "*fhir."):
+				imports = append(imports, "encoding/json")
+				body = append(body,
+					"var body fhir."+strings.TrimPrefix(o.Body, "*fhir."),
+					"if err := json.Unmarshal(data, &body); err != nil {", "\tlog.Fatal(err)", "}",
+				)
+				args = append(args, "&body")
+			default:
+				return "", fmt.Errorf("a body of type %s is not read from a file", o.Body)
+			}
 		} else if o.Body != "" {
 			if !strings.HasPrefix(o.Body, "*fhir.") {
 				return "", fmt.Errorf("a body of type %s has no literal", o.Body)
@@ -139,6 +194,7 @@ func goSample(s *spec, hl7 *fhirSchema, o operation) (string, error) {
 		}
 		body = append(body, lines...)
 	}
+	slices.Sort(imports)
 	var b strings.Builder
 	b.WriteString("package main\n\nimport (\n")
 	for _, p := range imports {
