@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 // bodyFile is where a sample reads a body that nests resources: a Bundle's entries or a Parameters
@@ -49,7 +50,7 @@ func nestsResources(example json.RawMessage) bool {
 // asPhrase is an example's label as it reads after "holds": "A pharmacy ..." and "One patient's ..."
 // read on in lower case, and an acronym such as "FHIR" stays as it is.
 func asPhrase(label string) string {
-	if len(label) > 1 && label[0] >= 'A' && label[0] <= 'Z' && !(label[1] >= 'A' && label[1] <= 'Z') {
+	if len(label) > 1 && unicode.IsUpper(rune(label[0])) && !unicode.IsUpper(rune(label[1])) {
 		return strings.ToLower(label[:1]) + label[1:]
 	}
 	return label
