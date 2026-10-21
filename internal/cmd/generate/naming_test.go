@@ -45,13 +45,16 @@ func TestParamName(t *testing.T) {
 		"npi":                      "NPI",
 		"url":                      "URL",
 		"isVirtual":                "IsVirtual",
+		// FHIR's chained search parameters, sent under their own names.
+		"location.address-state":  "LocationAddressState",
+		"organization.identifier": "OrganizationIdentifier",
 	} {
 		got, err := paramName(in)
 		if err != nil || got != want {
 			t.Errorf("paramName(%q) = %q, %v; want %q", in, got, err, want)
 		}
 	}
-	for _, bad := range []string{"_", "9lives", "a.b"} {
+	for _, bad := range []string{"_", "9lives", "a/b"} {
 		if got, err := paramName(bad); err == nil {
 			t.Errorf("paramName(%q) = %q, want an error", bad, got)
 		}
