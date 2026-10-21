@@ -15,11 +15,12 @@ var initialisms = map[string]string{
 
 var wordBoundary = regexp.MustCompile(`[a-z0-9][A-Z]`)
 
-// words splits a name at `-`, `:`, `_` and each lower-to-upper boundary: `name:contains` is
-// [name contains], `serviceTypeCode` is [service Type Code].
+// words splits a name at `-`, `:`, `_`, `.` and each lower-to-upper boundary: `name:contains` is
+// [name contains], `serviceTypeCode` is [service Type Code], and a FHIR chained search such as
+// `location.address-state` is [location address state].
 func words(name string) []string {
 	spaced := wordBoundary.ReplaceAllStringFunc(name, func(pair string) string { return pair[:1] + " " + pair[1:] })
-	return strings.FieldsFunc(spaced, func(r rune) bool { return r == ' ' || r == '-' || r == ':' || r == '_' })
+	return strings.FieldsFunc(spaced, func(r rune) bool { return r == ' ' || r == '-' || r == ':' || r == '_' || r == '.' })
 }
 
 // goName is a name as an exported Go identifier: each word capitalized, initialisms in one case.
