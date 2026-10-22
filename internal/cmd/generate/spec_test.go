@@ -72,3 +72,39 @@ func TestABodyThatNestsAResourceIsReadFromAFile(t *testing.T) {
 		t.Errorf("asPhrase keeps an acronym: %q", got)
 	}
 }
+
+func TestAnOptionalHeaderParameterIsLeftToWithHeader(t *testing.T) {
+	header := map[string]any{"name": "Example-Header", "in": "header", "required": false, "schema": map[string]any{"type": "string"}}
+	data, _ := specWith(t, "/v1/fhir/r4/$process-message", "post", func(op map[string]any) {
+		op["parameters"] = append([]any{header}, op["parameters"].([]any)...)
+	})
+	s, err := parseSpec(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, o := range s.Operations {
+		if o.ID == "processMessage" && (len(o.Query) != 0 || len(o.PathParams) != 0) {
+			t.Errorf("the header became a parameter of the method: %+v %+v", o.Query, o.PathParams)
+		}
+	}
+}
+
+func TestARequiredHeaderParameterStopsTheGenerator(t *testing.T) {
+	header := map[string]any{"name": "Example-Header", "in": "header", "required": true, "schema": map[string]any{"type": "string"}}
+	data, _ := specWith(t, "/v1/fhir/r4/$process-message", "post", func(op map[string]any) {
+		op["parameters"] = append([]any{header}, op["parameters"].([]any)...)
+	})
+	if _, err := parseSpec(data); err == nil || !strings.Contains(err.Error(), "the required header Example-Header") {
+		t.Errorf("got %v", err)
+	}
+}
+
+func TestAParameterInACookieStillStopsTheGenerator(t *testing.T) {
+	cookie := map[string]any{"name": "example", "in": "cookie", "schema": map[string]any{"type": "string"}}
+	data, _ := specWith(t, "/v1/fhir/r4/$process-message", "post", func(op map[string]any) {
+		op["parameters"] = append([]any{cookie}, op["parameters"].([]any)...)
+	})
+	if _, err := parseSpec(data); err == nil || !strings.Contains(err.Error(), "a parameter in cookie, which the generator does not read") {
+		t.Errorf("got %v", err)
+	}
+}
