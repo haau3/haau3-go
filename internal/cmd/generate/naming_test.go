@@ -63,11 +63,11 @@ func TestParamName(t *testing.T) {
 
 func TestDocsURLsNumberRepeats(t *testing.T) {
 	seen := docsURLs{}
-	first := seen.url("Plan Benefits", "Read an insurance plan's network")
-	if first != "https://docs.haau3.com/api-reference/plan-benefits/read-an-insurance-plans-network" {
+	first := seen.url("Medical Benefits", "Read an insurance plan's network")
+	if first != "https://docs.haau3.com/api-reference/medical-benefits/read-an-insurance-plans-network" {
 		t.Fatal(first)
 	}
-	if again := seen.url("Plan Benefits", "Read an insurance plan's network"); again != first+"-1" {
+	if again := seen.url("Medical Benefits", "Read an insurance plan's network"); again != first+"-1" {
 		t.Fatal(again)
 	}
 }
