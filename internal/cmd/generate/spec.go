@@ -276,6 +276,13 @@ func (s *spec) readOperation(path, method string, op object, here pointer) (oper
 			}
 			fields[q.Name] = q.Wire
 			o.Query = append(o.Query, q)
+		case "header":
+			// An optional header is sent with WithHeader until the generator offers it as an option of
+			// its own. A required one would make a call the generated method cannot complete, so it
+			// stops the generator, as any parameter it does not read does.
+			if required, _ := p["required"].(bool); required {
+				return o, fmt.Errorf("%s: the required header %s, which the generator does not send", id, name)
+			}
 		default:
 			return o, fmt.Errorf("%s: a parameter in %v, which the generator does not read", id, p["in"])
 		}
