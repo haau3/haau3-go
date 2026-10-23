@@ -131,6 +131,17 @@ slots, err := client.SearchSlots(ctx, haau3.SearchSlotsParams{State: new("MA")},
 	haau3.WithTimeout(10*time.Second), haau3.WithMaxRetries(0))
 ```
 
+An operation that declares a header of its own takes it as an option of its own, named from the
+header. `ProcessMessage` takes `WithPayerAuthorization`, sent as `Payer-Authorization`: a member's
+own authorization at their insurer, `Bearer` and the access token your app got from the member's
+login there. The SDK checks it against the form the API takes before sending, and refuses one the
+API would not take, or one given to any other call or to `NewClient`, with an error of
+`KindNotSent` that never repeats it.
+
+```go
+checked, err := client.ProcessMessage(ctx, message, haau3.WithPayerAuthorization("Bearer "+accessToken))
+```
+
 `WithHTTPClient` takes any `*http.Client`: its `Transport` carries a proxy, certificates,
 connection limits, or tracing such as OpenTelemetry's `otelhttp.NewTransport`. The SDK sends with a
 copy that never follows a redirect, so the key goes only where it was sent, and it never changes or

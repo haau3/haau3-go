@@ -13,7 +13,8 @@ import (
 //
 // WithBaseURL and WithHTTPClient are for NewClient only, and WithCorrelationID and
 // WithResponseInfo for a call only; either given in the other place is refused with an error of
-// KindNotSent.
+// KindNotSent. An option for a header an operation declares, such as WithPayerAuthorization
+// (options_gen.go), is for a call to that operation only.
 type Option func(*settings)
 
 type settings struct {
@@ -24,6 +25,7 @@ type settings struct {
 	maxRetries    *int
 	correlationID *string
 	headers       [][2]string
+	declared      []declaredValue
 	info          *ResponseInfo
 	clientOnly    []string
 	callOnly      []string
@@ -104,6 +106,20 @@ func WithCorrelationID(id string) Option {
 // key's included, so use it for what no other option does.
 func WithHeader(name, value string) Option {
 	return func(s *settings) { s.headers = append(s.headers, [2]string{name, value}) }
+}
+
+// declaredValue is the value given to the option for a header an operation declares.
+type declaredValue struct {
+	wire, option, value string
+}
+
+// declare is the option for a header an operation declares: for a call only, and checked against
+// the operation's schema for the header when the call is made (callSettings).
+func declare(wire, option, value string) Option {
+	return func(s *settings) {
+		s.declared = append(s.declared, declaredValue{wire: wire, option: option, value: value})
+		s.callOnly = append(s.callOnly, option)
+	}
 }
 
 // WithResponseInfo fills in info when the call succeeds: the request id and timing that came with

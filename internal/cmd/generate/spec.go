@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 )
@@ -29,6 +30,22 @@ type param struct {
 	Example     any // the spec's example value, when it has one
 }
 
+// header is an optional header parameter, sent with an option of its own named from it:
+// `Payer-Authorization` is WithPayerAuthorization.
+type header struct {
+	Wire        string
+	Option      string
+	Description string
+	MaxLength   int    // 0 when the spec sets none
+	Pattern     string // the spec's pattern, which Go's regexp read alike when the generator ran
+}
+
+// callOptions are the options the SDK writes by hand; a header's option must not be one of them.
+var callOptions = []string{
+	"WithAPIKey", "WithBaseURL", "WithHTTPClient", "WithTimeout", "WithMaxRetries", "WithCorrelationID",
+	"WithHeader", "WithResponseInfo",
+}
+
 // operation is one operation of the spec, as the generator writes it.
 type operation struct {
 	ID          string // operationId: `readInsurancePlan`
@@ -42,6 +59,7 @@ type operation struct {
 	PathParams  []string
 	PathExample []string
 	Query       []param
+	Headers     []header // its optional header parameters, each sent with an option of its own
 	Body        string   // the Go type of the body: `*fhir.Parameters`, `fhir.Resource`, or ""
 	BodyTypes   []string // the resource types a body may be
 	Answer      string   // the Go type of the answer: `*fhir.InsurancePlan`, `*SearchSlotsResponse`, `fhir.Resource`
@@ -225,9 +243,21 @@ func (s *spec) readOperations() error {
 		return fmt.Errorf("the spec has no batch at POST %s", fhirBase)
 	}
 	names := map[string]string{}
+	headers := map[string]header{}
 	for i := range s.Operations {
 		op := &s.Operations[i]
 		op.Batchable = strings.HasPrefix(op.Path, fhirBase+"/") && !op.Refused
+		for _, h := range op.Headers {
+			if op.Batchable {
+				// A batch entry is one request inside the batch's body, which carries no headers of its own.
+				return fmt.Errorf("%s declares the header %s and can go in a batch, whose entries carry no headers", op.ID, h.Wire)
+			}
+			// One option serves every operation that declares the header, so they must declare it alike.
+			if other, ok := headers[h.Wire]; ok && (other.MaxLength != h.MaxLength || other.Pattern != h.Pattern) {
+				return fmt.Errorf("%s declares the header %s with another schema than an operation before it", op.ID, h.Wire)
+			}
+			headers[h.Wire] = h
+		}
 		if other, ok := names[op.Name]; ok {
 			return fmt.Errorf("%s and %s are both %s in Go", other, op.ID, op.Name)
 		}
@@ -235,6 +265,31 @@ func (s *spec) readOperations() error {
 	}
 	slices.SortFunc(s.Operations, func(a, b operation) int { return cmp.Compare(a.ID, b.ID) })
 	return nil
+}
+
+// readHeader reads an optional header parameter: a string, with a name Go can give an option, and
+// a pattern, when it has one, that Go's regexp reads.
+func readHeader(id, name string, p object) (header, error) {
+	h := header{Wire: name, Option: "With" + goName(name)}
+	h.Description, _ = p["description"].(string)
+	h.Description = strings.Join(strings.Fields(h.Description), " ")
+	if slices.Contains(callOptions, h.Option) {
+		return h, fmt.Errorf("%s: the header %s would be the option %s, which the SDK already has", id, name, h.Option)
+	}
+	schema, _ := p["schema"].(object)
+	if schema["type"] != "string" {
+		return h, fmt.Errorf("%s: the header %s is not a string, the only kind the generator sends", id, name)
+	}
+	if n, ok := schema["maxLength"].(float64); ok {
+		h.MaxLength = int(n)
+	}
+	if pattern, ok := schema["pattern"].(string); ok {
+		if _, err := regexp.Compile(pattern); err != nil {
+			return h, fmt.Errorf("%s: the header %s has a pattern Go's regexp cannot read: %w", id, name, err)
+		}
+		h.Pattern = pattern
+	}
+	return h, nil
 }
 
 func (s *spec) readOperation(path, method string, op object, here pointer) (operation, error) {
@@ -277,12 +332,17 @@ func (s *spec) readOperation(path, method string, op object, here pointer) (oper
 			fields[q.Name] = q.Wire
 			o.Query = append(o.Query, q)
 		case "header":
-			// An optional header is sent with WithHeader until the generator offers it as an option of
-			// its own. A required one would make a call the generated method cannot complete, so it
-			// stops the generator, as any parameter it does not read does.
+			// An optional header is sent with an option of its own. A required one would make a call
+			// the generated method cannot complete, so it stops the generator, as any parameter it
+			// does not read does.
 			if required, _ := p["required"].(bool); required {
 				return o, fmt.Errorf("%s: the required header %s, which the generator does not send", id, name)
 			}
+			h, err := readHeader(id, name, p)
+			if err != nil {
+				return o, err
+			}
+			o.Headers = append(o.Headers, h)
 		default:
 			return o, fmt.Errorf("%s: a parameter in %v, which the generator does not read", id, p["in"])
 		}
