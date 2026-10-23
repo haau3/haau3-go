@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"runtime"
+	"slices"
 	"strings"
 	"time"
 )
@@ -110,10 +111,15 @@ type callSettings struct {
 	maxRetries    int
 	correlationID string
 	headers       [][2]string
+	declared      [][2]string // the headers the operation declares, checked, from their own options
 	info          *ResponseInfo
 }
 
-func (c *Client) settingsFor(name string, opts []Option) (*callSettings, error) {
+// settingsFor is one call's settings. declares is what the call's operation declares: a header's
+// option given to any other call is refused, and one given to its own call is checked against the
+// header's schema, in a message that names the option, never its value, since a header such as
+// Payer-Authorization carries a credential.
+func (c *Client) settingsFor(name string, opts []Option, declares ...declaredHeader) (*callSettings, error) {
 	s := apply(opts)
 	if len(s.clientOnly) > 0 {
 		return nil, notSent(fmt.Sprintf("%s was not sent: %s is for NewClient only.", name, strings.Join(s.clientOnly, " and ")))
@@ -141,5 +147,19 @@ func (c *Client) settingsFor(name string, opts []Option) (*callSettings, error) 
 		cs.correlationID = *s.correlationID
 	}
 	cs.headers = append(append(cs.headers, c.headers...), s.headers...)
+	for _, v := range s.declared {
+		i := slices.IndexFunc(declares, func(h declaredHeader) bool { return h.wire == v.wire })
+		if i < 0 {
+			return nil, notSent(fmt.Sprintf("%s was not sent: %s is for a call whose operation declares %s, which this one does not.", name, v.option, v.wire))
+		}
+		h := declares[i]
+		if h.maxLength > 0 && len(v.value) > h.maxLength {
+			return nil, notSent(fmt.Sprintf("%s was not sent: %s is longer than the %d characters the API takes in %s.", name, v.option, h.maxLength, h.wire))
+		}
+		if strings.ContainsAny(v.value, "\r\n") || (h.pattern != nil && !h.pattern.MatchString(v.value)) {
+			return nil, notSent(fmt.Sprintf("%s was not sent: %s is not in the form the API takes in %s, which the option's description gives.", name, v.option, h.wire))
+		}
+		cs.declared = append(cs.declared, [2]string{h.wire, v.value})
+	}
 	return cs, nil
 }

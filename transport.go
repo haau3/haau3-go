@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"runtime"
 	"slices"
 	"strconv"
@@ -41,6 +42,16 @@ type operation struct {
 	path      string   // in the spec, such as `/v1/fhir/r4/InsurancePlan/{id}`
 	expects   []string // the FHIR resource types a success may be; empty checks no type
 	bodyTypes []string // the resource types its body may be
+	headers   []declaredHeader
+}
+
+// declaredHeader is a header parameter an operation declares, sent from an option of its own and
+// checked against the spec's schema for it before sending.
+type declaredHeader struct {
+	wire      string // as the spec names it: `Payer-Authorization`
+	option    string // the option it is sent from: WithPayerAuthorization
+	maxLength int    // 0 when the spec sets none
+	pattern   *regexp.Regexp
 }
 
 // label names a request in a message: `GET /v1/fhir/r4/InsurancePlan/{id}`, never a value sent.
@@ -117,6 +128,10 @@ func (c *Client) send(ctx context.Context, method, url string, content []byte, s
 		}
 	}
 	for _, h := range s.headers {
+		header.Set(h[0], h[1])
+	}
+	// A header the operation declares is sent from its own option, over the same one from WithHeader.
+	for _, h := range s.declared {
 		header.Set(h[0], h[1])
 	}
 	if s.correlationID != "" {
@@ -206,7 +221,7 @@ func call[R any](ctx context.Context, c *Client, op *operation, pathValues []str
 	body any, decode func([]byte) (R, error), opts []Option) (R, error) {
 	var zero R
 	name := op.label()
-	s, err := c.settingsFor(name, opts)
+	s, err := c.settingsFor(name, opts, op.headers...)
 	if err != nil {
 		return zero, err
 	}

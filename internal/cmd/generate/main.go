@@ -6,6 +6,7 @@
 //   - operations_gen.go: one method per operation, named by its operationId in Go's style, its
 //     params struct, and its entry for a batch;
 //   - operations_gen_test.go: each operation called with the spec's own example;
+//   - options_gen.go: an option for each header an operation declares, named from it;
 //   - api.md: every method by service, each linking its page on docs.haau3.com.
 //
 // Run it from the repository's root:
@@ -70,6 +71,7 @@ func outputs(root string) (map[string][]byte, error) {
 		"types_gen.go":           typesSource,
 		"operations_gen.go":      emitOperations(s),
 		"operations_gen_test.go": emitExamplesTest(s),
+		"options_gen.go":         emitHeaderOptions(s),
 	} {
 		formatted, err := format.Source([]byte(source))
 		if err != nil {

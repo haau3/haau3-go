@@ -4,6 +4,7 @@ package haau3
 
 import (
 	"context"
+	"regexp"
 	"time"
 
 	"github.com/haau3/haau3-go/fhir"
@@ -25,7 +26,7 @@ var (
 	opListPublishers                = operation{id: "listPublishers", method: "GET", path: "/v1/scheduling/publishers"}
 	opListServiceTypes              = operation{id: "listServiceTypes", method: "GET", path: "/v1/scheduling/service-types"}
 	opListSpecialties               = operation{id: "listSpecialties", method: "GET", path: "/v1/scheduling/specialties"}
-	opProcessMessage                = operation{id: "processMessage", method: "POST", path: "/v1/fhir/r4/$process-message", expects: []string{"Bundle"}, bodyTypes: []string{"Bundle"}}
+	opProcessMessage                = operation{id: "processMessage", method: "POST", path: "/v1/fhir/r4/$process-message", expects: []string{"Bundle"}, bodyTypes: []string{"Bundle"}, headers: []declaredHeader{{wire: "Payer-Authorization", option: "WithPayerAuthorization", maxLength: 4096, pattern: regexp.MustCompile("^[Bb][Ee][Aa][Rr][Ee][Rr] +[A-Za-z0-9\\-._~+/]+=*$")}}}
 	opReadEndpoint                  = operation{id: "readEndpoint", method: "GET", path: "/v1/fhir/r4/Endpoint/{id}", expects: []string{"Endpoint"}}
 	opReadHealthcareService         = operation{id: "readHealthcareService", method: "GET", path: "/v1/fhir/r4/HealthcareService/{id}", expects: []string{"HealthcareService"}}
 	opReadInsurancePlan             = operation{id: "readInsurancePlan", method: "GET", path: "/v1/fhir/r4/InsurancePlan/{id}", expects: []string{"InsurancePlan"}}
@@ -1334,6 +1335,8 @@ func (c *Client) ListSpecialties(ctx context.Context, params ListSpecialtiesPara
 //
 // POST /v1/fhir/r4/$process-message (processMessage):
 // https://docs.haau3.com/api-reference/pharmacy-benefits/check-what-a-medication-costs-pharmacy-benefit-check
+//
+// WithPayerAuthorization sends Payer-Authorization, checked before sending.
 func (c *Client) ProcessMessage(ctx context.Context, body *fhir.Bundle, opts ...Option) (*fhir.Bundle, error) {
 	return call(ctx, c, &opProcessMessage, nil, nil, nil, bodyOf(body), decodeAs[fhir.Bundle], opts)
 }

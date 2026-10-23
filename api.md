@@ -11,6 +11,9 @@ Go's style (`name:contains` is `NameContains`, `_count` is `Count`), each docume
 Every method also takes the per-call options `WithTimeout`, `WithMaxRetries`, `WithCorrelationID`,
 `WithHeader`, `WithAPIKey` and `WithResponseInfo`, which gives the request id and timing too.
 
+An operation that declares a header takes it as an option of its own, named from the header and
+checked before sending: `ProcessMessage` takes `WithPayerAuthorization`, sent as `Payer-Authorization`.
+
 `Client.Batch` sends several of these as one request, each with its own answer or error, from the
 entries `haau3.Calls` makes. It takes every operation on the FHIR base except `FHIRBatch`, `ProcessMessage` and `ReconcileMedications`:
 29 of the 37. See the README's "Several requests in one".

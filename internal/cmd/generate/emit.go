@@ -124,7 +124,13 @@ func emitOperations(s *spec) string {
 	if s.usesTime() {
 		timeImport = "\t\"time\"\n"
 	}
-	b.WriteString(generatedHeader + "package haau3\n\nimport (\n\t\"context\"\n" + timeImport + "\n\t\"github.com/haau3/haau3-go/fhir\"\n)\n\n")
+	regexpImport := ""
+	if slices.ContainsFunc(s.Operations, func(o operation) bool {
+		return slices.ContainsFunc(o.Headers, func(h header) bool { return h.Pattern != "" })
+	}) {
+		regexpImport = "\t\"regexp\"\n"
+	}
+	b.WriteString(generatedHeader + "package haau3\n\nimport (\n\t\"context\"\n" + regexpImport + timeImport + "\n\t\"github.com/haau3/haau3-go/fhir\"\n)\n\n")
 	fmt.Fprintf(&b, "// SpecVersion is the version of the API's spec this release was generated from.\nconst SpecVersion = %q\n\n", s.Version)
 
 	b.WriteString("// Each operation of the spec: its method, its path and what its answer may be.\nvar (\n")
@@ -135,6 +141,23 @@ func emitOperations(s *spec) string {
 		}
 		if o.Body != "" {
 			fmt.Fprintf(&b, ", bodyTypes: %#v", o.BodyTypes)
+		}
+		if len(o.Headers) > 0 {
+			b.WriteString(", headers: []declaredHeader{")
+			for i, h := range o.Headers {
+				if i > 0 {
+					b.WriteString(", ")
+				}
+				fmt.Fprintf(&b, "{wire: %q, option: %q", h.Wire, h.Option)
+				if h.MaxLength > 0 {
+					fmt.Fprintf(&b, ", maxLength: %d", h.MaxLength)
+				}
+				if h.Pattern != "" {
+					fmt.Fprintf(&b, ", pattern: regexp.MustCompile(%q)", h.Pattern)
+				}
+				b.WriteString("}")
+			}
+			b.WriteString("}")
 		}
 		b.WriteString("}\n")
 	}
@@ -188,6 +211,9 @@ func emitOperations(s *spec) string {
 			doc += "\n\n" + o.Description
 		}
 		doc += fmt.Sprintf("\n\n%s (%s): %s", o.Label(), o.ID, o.Docs)
+		for _, h := range o.Headers {
+			doc += fmt.Sprintf("\n\n%s sends %s, checked before sending.", h.Option, h.Wire)
+		}
 		comment(&b, "", doc)
 		args := strings.Join(append([]string{"ctx context.Context"}, append(declared, "opts ...Option")...), ", ")
 		fmt.Fprintf(&b, "func (c *Client) %s(%s) (%s, error) {\n", o.Name, args, o.Answer)
@@ -502,6 +528,13 @@ then its query parameters as a struct, ` + "`<Method>Params`" + `, whose fields 
 Go's style (` + "`name:contains` is `NameContains`, `_count` is `Count`" + `), each documented with both.
 Every method also takes the per-call options ` + "`WithTimeout`, `WithMaxRetries`, `WithCorrelationID`,\n`WithHeader`, `WithAPIKey` and `WithResponseInfo`" + `, which gives the request id and timing too.
 `)
+	if headers, byWire := declaring(s); len(headers) > 0 {
+		var each []string
+		for _, h := range headers {
+			each = append(each, fmt.Sprintf("%s takes `%s`, sent as `%s`", named(quoted(byWire[h.Wire])), h.Option, h.Wire))
+		}
+		fmt.Fprintf(&b, "\nAn operation that declares a header takes it as an option of its own, named from the header and\nchecked before sending: %s.\n", strings.Join(each, "; "))
+	}
 	fmt.Fprintf(&b, "\n`Client.Batch` sends several of these as one request, each with its own answer or error, from the\nentries `haau3.Calls` makes. It takes every operation on the FHIR base except %s:\n%d of the %d. See the README's \"Several requests in one\".\n", named(excluded), batchable, len(s.Operations))
 	for _, tag := range tags {
 		fmt.Fprintf(&b, "\n## %s\n\n%s\n\n| Method | Request | What it does |\n|---|---|---|\n", tag, desc[tag])
@@ -510,6 +543,61 @@ Every method also takes the per-call options ` + "`WithTimeout`, `WithMaxRetries
 			sig := fmt.Sprintf("%s(%s)", o.Name, strings.Join(append([]string{"ctx"}, names...), ", "))
 			fmt.Fprintf(&b, "| [`%s`](%s) | `%s %s` | %s |\n", sig, o.Docs, o.Method, o.Path, o.Summary)
 		}
+	}
+	return b.String()
+}
+
+// declaring is each header an operation declares, in the order of the headers' names, and the
+// operations that declare each.
+func declaring(s *spec) ([]header, map[string][]string) {
+	byWire := map[string][]string{}
+	var headers []header
+	for _, o := range s.Operations {
+		for _, h := range o.Headers {
+			if _, ok := byWire[h.Wire]; !ok {
+				headers = append(headers, h)
+			}
+			byWire[h.Wire] = append(byWire[h.Wire], o.Name)
+		}
+	}
+	slices.SortFunc(headers, func(a, b header) int { return strings.Compare(a.Wire, b.Wire) })
+	return headers, byWire
+}
+
+// quoted is each name in code font.
+func quoted(names []string) []string {
+	out := make([]string, len(names))
+	for i, n := range names {
+		out[i] = "`" + n + "`"
+	}
+	return out
+}
+
+// emitHeaderOptions writes an option for each header an operation declares: WithPayerAuthorization
+// sends Payer-Authorization. The client checks its value against the header's schema before sending.
+func emitHeaderOptions(s *spec) string {
+	var b strings.Builder
+	b.WriteString(generatedHeader + "package haau3\n\n")
+	headers, byWire := declaring(s)
+	if len(headers) == 0 {
+		b.WriteString("// No operation of the spec declares a header of its own.\n")
+		return b.String()
+	}
+	for _, h := range headers {
+		ops := named(byWire[h.Wire])
+		doc := fmt.Sprintf("%s sends %s with a call to %s.", h.Option, h.Wire, ops)
+		if h.Description != "" {
+			doc += " " + h.Description
+		}
+		limit := ""
+		if h.MaxLength > 0 {
+			limit = fmt.Sprintf(", at most %d characters", h.MaxLength)
+		}
+		doc += fmt.Sprintf("\n\nIt is checked against the form the API takes for it%s, before sending: a value it does not "+
+			"take is refused with an error of KindNotSent that never repeats it. It wins over the same header given "+
+			"with WithHeader. For a call to %s only: NewClient and any other call refuse it.", limit, ops)
+		comment(&b, "", doc)
+		fmt.Fprintf(&b, "func %s(value string) Option {\n\treturn declare(%q, %q, value)\n}\n\n", h.Option, h.Wire, h.Option)
 	}
 	return b.String()
 }
