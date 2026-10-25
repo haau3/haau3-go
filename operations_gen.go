@@ -11,7 +11,7 @@ import (
 )
 
 // SpecVersion is the version of the API's spec this release was generated from.
-const SpecVersion = "1.0.0-preview.12"
+const SpecVersion = "1.0.0-preview.13"
 
 // Each operation of the spec: its method, its path and what its answer may be.
 var (
@@ -1327,11 +1327,15 @@ func (c *Client) ListSpecialties(ctx context.Context, params ListSpecialtiesPara
 // `https://haau3.com/fhir/CodeSystem/pharmacy-benefits-processing-code`, and a member's request to
 // an insurer that needs the member's authorization carries `payer-authorization-required` when none
 // was sent and `payer-authorization-rejected` when the insurer refused it. A price is an estimate;
-// the pharmacy confirms the price. A member's request receives patient data, so send it only under
-// an executed agreement. Nothing a request carries is stored or logged, apart from the request's
-// ids, and every answer is sent with `Cache-Control: no-store`. The operation takes no query
-// parameters and is not offered inside a batch. The contract is published at
-// https://fhir.haau3.com/pharmacy-benefits.html.
+// the pharmacy confirms the price. A member's request receives patient data, so send real patient
+// data only under an executed business associate agreement (BAA) on the Team or Scale plan. Without
+// both, send a member's request only as test data marked as such, the request and every resource in
+// it labelled with the `meta.security` coding `HTEST` from
+// `http://terminology.hl7.org/CodeSystem/v3-ActReason`; anything else is refused with `403`
+// `phi-agreement-required`. A request without patient details needs neither. Nothing a request
+// carries is stored or logged, apart from the request's ids, and every answer is sent with
+// `Cache-Control: no-store`. The operation takes no query parameters and is not offered inside a
+// batch. The contract is published at https://fhir.haau3.com/pharmacy-benefits.html.
 //
 // POST /v1/fhir/r4/$process-message (processMessage):
 // https://docs.haau3.com/api-reference/pharmacy-benefits/check-what-a-medication-costs-pharmacy-benefit-check
@@ -1452,9 +1456,12 @@ func (c *Client) ReadQuestionnaire(ctx context.Context, id string, opts ...Optio
 // reconciled MedicationRequest per clinical drug, a Provenance for each naming the records behind
 // it, and an OperationOutcome when a record was skipped. To evaluate the list as of another date,
 // POST a Parameters resource with `resource` parts, or one `bundle` part, and an `asOf` part. This
-// operation receives patient data, so send it only under an executed agreement. Nothing a request
-// carries is stored or logged, apart from the request's ids, and the operation is not offered
-// inside a batch. The contract is published at
+// operation receives patient data, so send real patient data only under an executed business
+// associate agreement (BAA) on the Team or Scale plan. Without both, send only test data marked as
+// such, the request and every resource in it labelled with the `meta.security` coding `HTEST` from
+// `http://terminology.hl7.org/CodeSystem/v3-ActReason`; anything else is refused with `403`
+// `phi-agreement-required`. Nothing a request carries is stored or logged, apart from the request's
+// ids, and the operation is not offered inside a batch. The contract is published at
 // https://fhir.haau3.com/OperationDefinition-reconcile-medications.html.
 //
 // POST /v1/fhir/r4/$reconcile-medications (reconcileMedications):
