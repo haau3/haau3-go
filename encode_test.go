@@ -110,6 +110,42 @@ func TestABaseURLWithAPathKeepsItsPathAndAsksForFHIR(t *testing.T) {
 	}
 }
 
+// The API reads a path equal to or under /v1/fhir or /v1/sandbox/fhir as FHIR, and nothing else.
+func TestACallToEitherFHIRBaseAsksForAndSendsFHIRJSON(t *testing.T) {
+	for _, tc := range []struct {
+		path string
+		fhir bool
+	}{
+		{"/v1/sandbox/fhir/r4/$process-message", true},
+		{"/v1/sandbox/fhir", true},
+		{"/v1/fhir/r4/$process-message", true},
+		{"/v1/fhir", true},
+		// The controls.
+		{"/v1/sandbox", false},
+		{"/v1/sandbox/fhirish", false},
+		{"/v1/scheduling/slots", false},
+	} {
+		want := "application/json"
+		if tc.fhir {
+			want = "application/fhir+json"
+		}
+		for _, base := range []string{"https://api.haau3.com", "https://proxy.example.test/haau3/"} {
+			rec := record(fhirReply(200, map[string]any{"resourceType": "Bundle"}))
+			c := testClient(t, rec, WithBaseURL(base))
+			if _, err := c.Request(t.Context(), RawRequest{Method: "POST", Path: tc.path, Body: map[string]any{"resourceType": "Bundle"}}); err != nil {
+				t.Fatal(err)
+			}
+			req := rec.last()
+			if got := req.Header.Get("Accept"); got != want {
+				t.Errorf("%s under %s: Accept %q, want %q", tc.path, base, got, want)
+			}
+			if got := req.Header.Get("Content-Type"); got != want {
+				t.Errorf("%s under %s: Content-Type %q, want %q", tc.path, base, got, want)
+			}
+		}
+	}
+}
+
 func TestJSONBodiesKeepHTMLCharacters(t *testing.T) {
 	got, err := jsonBytes(map[string]string{"div": "<div>a & b</div>"})
 	if err != nil || string(got) != `{"div":"<div>a & b</div>"}` {

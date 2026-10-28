@@ -252,7 +252,8 @@ func specHandler(req *http.Request) reply {
 	if !ok {
 		return fhirReply(404, map[string]any{"resourceType": "OperationOutcome"})
 	}
-	return reply{status: 200, body: []byte(answer), plain: !strings.HasPrefix(path, "/v1/fhir/")}
+	// The API answers FHIR JSON at either FHIR base.
+	return reply{status: 200, body: []byte(answer), plain: !isFHIR(path)}
 }
 
 // sameJSON reports whether two JSON documents hold the same values. An RFC 3339 instant is

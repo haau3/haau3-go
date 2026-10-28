@@ -226,8 +226,18 @@ func (c *Client) pathOf(rawURL string) string {
 	return u.Path
 }
 
+// fhirBases are the FHIR bases: production's, and the Sandbox's, which serves the same paths with
+// synthetic data.
+var fhirBases = []string{"/v1/fhir", "/v1/sandbox/fhir"}
+
+// isFHIR reports whether a path speaks FHIR: one equal to or under either base, as the API reads it.
 func isFHIR(relativePath string) bool {
-	return relativePath == "/v1/fhir" || strings.HasPrefix(relativePath, "/v1/fhir/")
+	for _, base := range fhirBases {
+		if relativePath == base || strings.HasPrefix(relativePath, base+"/") {
+			return true
+		}
+	}
+	return false
 }
 
 var uuid = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)

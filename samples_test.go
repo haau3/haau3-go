@@ -43,6 +43,7 @@ type specOperation struct {
 	pathValues       map[string]string
 	query            url.Values
 	body, answer     any
+	answers, sends   string // the media types the spec gives the answer, and the body when there is one
 }
 
 func readJSON(t *testing.T, name string, v any) {
@@ -71,6 +72,13 @@ func onlyMedia(content any) map[string]any {
 		return media.(map[string]any)
 	}
 	return nil
+}
+
+func onlyMediaType(content any) string {
+	for mediaType := range content.(map[string]any) {
+		return mediaType
+	}
+	return ""
 }
 
 // specOperations is every operation of the pinned spec, in the spec's order.
@@ -125,8 +133,11 @@ func specOperations(t *testing.T) []specOperation {
 			}
 			if body, ok := op["requestBody"].(map[string]any); ok {
 				o.body = firstExample(onlyMedia(body["content"]))
+				o.sends = onlyMediaType(body["content"])
 			}
-			o.answer = firstExample(onlyMedia(op["responses"].(map[string]any)["200"].(map[string]any)["content"]))
+			answered := op["responses"].(map[string]any)["200"].(map[string]any)["content"]
+			o.answer = firstExample(onlyMedia(answered))
+			o.answers = onlyMediaType(answered)
 			ops = append(ops, o)
 		}
 	}
@@ -277,7 +288,7 @@ func standIn(t *testing.T, ops []specOperation) *httptest.Server {
 			refuse(w, "not the example body")
 			return
 		}
-		send(w, http.StatusOK, o.answer, strings.HasPrefix(o.path, "/v1/fhir/"))
+		send(w, http.StatusOK, o.answer, o.answers == "application/fhir+json")
 	}))
 	t.Cleanup(server.Close)
 	return server
