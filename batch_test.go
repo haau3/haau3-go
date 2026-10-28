@@ -147,6 +147,9 @@ func TestTheBatchItselfIsJudgedAndRetriedAsAnyCall(t *testing.T) {
 	if err := testClient(t, record(fhirReply(401, nil))).Batch(context.Background(), []Entry{Calls.ReadInsurancePlan("H1")}); !errors.Is(err, ErrAuth) {
 		t.Errorf("%v", err)
 	}
+	if err := testClient(t, record(fhirReply(403, nil))).Batch(context.Background(), []Entry{Calls.ReadInsurancePlan("H1")}); !errors.Is(err, ErrForbidden) || errors.Is(err, ErrAuth) {
+		t.Errorf("%v", err)
+	}
 	if err := testClient(t, record(fhirReply(413, nil))).Batch(context.Background(), []Entry{Calls.ReadInsurancePlan("H1")}); !errors.Is(err, ErrRefused) {
 		t.Errorf("%v", err)
 	}

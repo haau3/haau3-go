@@ -29,10 +29,16 @@ func readPlan(t *testing.T, replies ...reply) error {
 	return err
 }
 
-func TestA401Or403IsAnAuthError(t *testing.T) {
+func TestA401IsKindAuthAndA403KindForbidden(t *testing.T) {
 	for _, status := range []int{401, 403} {
 		e := asError(t, readPlan(t, fhirReply(status, outcome)))
-		if e.Kind != KindAuth || e.Status != status || e.RequestID != requestID || !errors.Is(e, ErrAuth) {
+		kind, sentinel, other := KindAuth, ErrAuth, ErrForbidden
+		if status == 403 {
+			// A 403 is not a key the API did not accept, so code that handles KindAuth by rotating
+			// the key never sees it.
+			kind, sentinel, other = KindForbidden, ErrForbidden, ErrAuth
+		}
+		if e.Kind != kind || e.Status != status || e.RequestID != requestID || !errors.Is(e, sentinel) || errors.Is(e, other) {
 			t.Errorf("%d: %#v", status, e)
 		}
 		why := "the API key was not accepted"
@@ -208,7 +214,7 @@ func coded(code, system string) map[string]any {
 
 func TestA403NamesATestKeyOutsideTheSandbox(t *testing.T) {
 	e := asError(t, readPlan(t, fhirReply(403, coded("test-key-outside-sandbox", apiError))))
-	if e.Kind != KindAuth || !errors.Is(e, ErrAuth) || e.Code != "test-key-outside-sandbox" {
+	if e.Kind != KindForbidden || !errors.Is(e, ErrForbidden) || errors.Is(e, ErrAuth) || e.Code != "test-key-outside-sandbox" {
 		t.Errorf("%#v", e)
 	}
 	if e.Error() != "GET /v1/fhir/r4/InsurancePlan/{id} was refused: this is a test key, which works only in the Sandbox (403)." {
@@ -250,9 +256,33 @@ func TestA403ReadsItsCodeFromAProblemOffTheFHIRBases(t *testing.T) {
 	}
 }
 
+func TestA403NamesPatientDataNotAllLabelledAsTestDataAndNeverARefusedKey(t *testing.T) {
+	bundle := &fhir.Bundle{Type: new("collection")}
+	_, err := testClient(t, record(fhirReply(403, coded("phi-agreement-required", apiError)))).ReconcileMedications(context.Background(), bundle)
+	e := asError(t, err)
+	if e.Kind != KindForbidden || !errors.Is(e, ErrForbidden) || errors.Is(e, ErrAuth) || e.Code != "phi-agreement-required" {
+		t.Errorf("%#v", e)
+	}
+	want := "POST /v1/fhir/r4/$reconcile-medications was refused: its organization may not send patient data, " +
+		"and not every resource in this request is labelled as test data (403)."
+	if e.Error() != want {
+		t.Errorf("%q", e.Error())
+	}
+	if strings.Contains(e.Error(), "the API's own words") {
+		t.Error("the message quotes the body")
+	}
+	got, _ := json.Marshal(e)
+	if !strings.Contains(string(got), `"name":"ForbiddenError"`) || !strings.Contains(string(got), `"kind":"forbidden"`) {
+		t.Errorf("%s", got)
+	}
+	if e.GoString() == "" || !strings.Contains(e.GoString(), "haau3.KindForbidden") {
+		t.Errorf("%s", e.GoString())
+	}
+}
+
 func TestA403CarriesACodeItHasNoSentenceForUnderTheGeneralMessage(t *testing.T) {
-	e := asError(t, readPlan(t, fhirReply(403, coded("phi-agreement-required", apiError))))
-	if e.Code != "phi-agreement-required" {
+	e := asError(t, readPlan(t, fhirReply(403, coded("a-code-from-a-later-version", apiError))))
+	if e.Code != "a-code-from-a-later-version" {
 		t.Errorf("%#v", e)
 	}
 	if !strings.HasSuffix(e.Error(), "the API key was accepted, and its organization may not make this request (403).") {
