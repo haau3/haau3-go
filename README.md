@@ -158,7 +158,7 @@ asks the API.
 ## Errors
 
 Every error the SDK returns is an `*haau3.Error`, but for your own context's. Its `Kind` says which
-of four it is:
+of five it is:
 
 ```go
 plan, err := client.ReadInsurancePlan(ctx, planID)
@@ -172,23 +172,26 @@ if errors.As(err, &e) {
 		fmt.Println(e.Reason)     // timeout, network, rate-limited, unavailable, server-error or unreadable
 		fmt.Println(e.RetryAfter) // when the API said
 		fmt.Println(e.Detail)     // for a timeout or a network failure: what failed, such as "dial: connection refused"
+	case haau3.KindForbidden:
+		// 403: the key was accepted, and it may not make this request
+		fmt.Println(e.Code) // why, when the API names it: "test-key-outside-sandbox", "live-key-in-sandbox", "phi-agreement-required"
 	case haau3.KindAuth:
-		// 401: the key was missing, unknown or revoked. 403: it was accepted, and may not make this request
-		fmt.Println(e.Code) // on a 403, why, when the API names it: "test-key-outside-sandbox", "live-key-in-sandbox"
+		// 401: the key was missing, unknown or revoked
 	case haau3.KindNotSent:
 		// the SDK refused to send it: a required parameter left empty, a URL on another host
 	}
 }
 ```
 
-A 403 never means the key is wrong: there is nothing to rotate. Its `Code` says why when the API
-names it, and its message says the same in words. A test key works only in the Sandbox
-(`test-key-outside-sandbox`: send a live key), and a live key does not work there
-(`live-key-in-sandbox`: send a test key). Without a code, the body says what the organization may
-not do.
+A 403 is `KindForbidden`, never `KindAuth`: the key was accepted, so there is nothing to rotate. Its
+`Code` says why when the API names it, and its message says the same in words. A test key works only
+in the Sandbox (`test-key-outside-sandbox`: send a live key), and a live key does not work there
+(`live-key-in-sandbox`: send a test key). `phi-agreement-required` means the organization may not
+send patient data, and not every resource in the request is labelled as test data. Without a code,
+the body says what the organization may not do.
 
 `errors.Is(err, haau3.ErrNoAnswer)` checks the kind alone, and the same for `ErrAuth`,
-`ErrRefused` and `ErrNotSent`. A no-answer error unwraps to the network error behind it, so
+`ErrForbidden`, `ErrRefused` and `ErrNotSent`. A no-answer error unwraps to the network error behind it, so
 `errors.Is(err, context.DeadlineExceeded)` works. When your own context is cancelled or runs out,
 the error is the context's: `errors.Is(err, context.Canceled)`.
 

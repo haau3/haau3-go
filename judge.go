@@ -173,6 +173,7 @@ const apiErrorSystem = "https://haau3.com/fhir/CodeSystem/api-error"
 var forbiddenReasons = map[string]string{
 	"test-key-outside-sandbox": "this is a test key, which works only in the Sandbox",
 	"live-key-in-sandbox":      "this is a live key, which does not work in the Sandbox",
+	"phi-agreement-required":   "its organization may not send patient data, and not every resource in this request is labelled as test data",
 }
 
 const forbiddenGeneral = "the API key was accepted, and its organization may not make this request"
@@ -283,7 +284,7 @@ func judge(name string, status int, body []byte, c judgeContext) *Error {
 		if !ok {
 			why = forbiddenGeneral
 		}
-		e := answered(KindAuth, fmt.Sprintf("%s was refused: %s (%d).", name, why, status))
+		e := answered(KindForbidden, fmt.Sprintf("%s was refused: %s (%d).", name, why, status))
 		e.Code = code
 		return e
 	}
