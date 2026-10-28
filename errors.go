@@ -19,9 +19,9 @@ const (
 	// KindNotSent is a request the SDK refused to send: no API key, a URL on another host than the
 	// client's base URL, a correlation id that is not a UUID, a required parameter left empty.
 	KindNotSent Kind = iota + 1
-	// KindAuth is the API refusing the request because of the key. A 401 means the key itself:
-	// none was sent, it is not one the API knows, or it was revoked. A 403 means the key was
-	// accepted and may not make this request, as Code says when the API names why.
+	// KindAuth is the API not accepting the key (401): none was sent, it is not one the API knows,
+	// or it was revoked. A 403 is never KindAuth: the key was accepted, and the error is
+	// KindForbidden.
 	KindAuth
 	// KindRefused is the API answering and refusing the request: a parameter it does not take, a
 	// record that does not exist (404), a page that no longer exists (410), a body that is too
@@ -31,6 +31,18 @@ const (
 	// Reason says why. It never means "no results": an empty search answers with an empty Bundle
 	// or list, not with this error.
 	KindNoAnswer
+	// KindForbidden is the API accepting the key and refusing the request (403). The key itself is
+	// real, so there is nothing to rotate. Code says why when the API names it, and the message
+	// says it in words:
+	//
+	//   - "test-key-outside-sandbox": a test key works only in the Sandbox. Send a live key.
+	//   - "live-key-in-sandbox": a live key does not work in the Sandbox. Send a test key.
+	//   - "phi-agreement-required": the organization may not send patient data, and not every
+	//     resource in the request is labelled as test data.
+	//
+	// Without a code, the key's organization may not make the request, or the operation is not yet
+	// open to it; the body says why, in the API's words.
+	KindForbidden
 )
 
 func (k Kind) String() string {
@@ -43,6 +55,8 @@ func (k Kind) String() string {
 		return "refused"
 	case KindNoAnswer:
 		return "no-answer"
+	case KindForbidden:
+		return "forbidden"
 	}
 	return "unknown"
 }
@@ -57,18 +71,15 @@ func (k Kind) goName() string {
 		return "haau3.KindRefused"
 	case KindNoAnswer:
 		return "haau3.KindNoAnswer"
+	case KindForbidden:
+		return "haau3.KindForbidden"
 	}
 	return fmt.Sprintf("haau3.Kind(%d)", int(k))
 }
 
 // errorName is the name the TypeScript and Python SDKs give the same error, so a log reads alike
-// whichever language wrote it: a 403 is their ForbiddenError, a subclass of AuthError.
-func (e *Error) errorName() string {
-	if e.Kind == KindAuth && e.Status == 403 {
-		return "ForbiddenError"
-	}
-	return e.Kind.errorName()
-}
+// whichever language wrote it.
+func (e *Error) errorName() string { return e.Kind.errorName() }
 
 func (k Kind) errorName() string {
 	switch k {
@@ -78,6 +89,8 @@ func (k Kind) errorName() string {
 		return "RefusedError"
 	case KindNoAnswer:
 		return "NoAnswerError"
+	case KindForbidden:
+		return "ForbiddenError"
 	}
 	return "Haau3Error"
 }
@@ -109,6 +122,7 @@ const (
 //	if errors.As(err, &e) {
 //		switch e.Kind {
 //		case haau3.KindRefused: // e.Status, e.Outcome()
+//		case haau3.KindForbidden: // e.Code
 //		case haau3.KindNoAnswer: // e.Reason, e.RetryAfter, e.Detail
 //		}
 //	}
@@ -124,9 +138,10 @@ type Error struct {
 	// StatusText is that status's text: the answer's own, or the standard one when it came with
 	// none, as HTTP/2 answers do. Empty when the API did not answer.
 	StatusText string
-	// Code is the API's own code for why it refused a request with a 403, from its api-error code
-	// system, when it names one: "test-key-outside-sandbox" (a test key works only in the
-	// Sandbox), "live-key-in-sandbox" (a live key does not work there), "phi-agreement-required".
+	// Code is the API's own code for why it refused a request with a 403 (KindForbidden), from its
+	// api-error code system, when it names one: "test-key-outside-sandbox" (a test key works only
+	// in the Sandbox), "live-key-in-sandbox" (a live key does not work there),
+	// "phi-agreement-required" (patient data not all labelled as test data).
 	Code string
 	// Reason says why there was no answer, for KindNoAnswer.
 	Reason Reason
@@ -298,10 +313,11 @@ func (k *kindError) Error() string { return "haau3: " + k.kind.String() }
 // Sentinels for errors.Is, one per Kind: errors.Is(err, haau3.ErrNoAnswer) is true for an *Error
 // whose Kind is KindNoAnswer.
 var (
-	ErrNotSent  error = &kindError{KindNotSent}
-	ErrAuth     error = &kindError{KindAuth}
-	ErrRefused  error = &kindError{KindRefused}
-	ErrNoAnswer error = &kindError{KindNoAnswer}
+	ErrNotSent   error = &kindError{KindNotSent}
+	ErrAuth      error = &kindError{KindAuth}
+	ErrRefused   error = &kindError{KindRefused}
+	ErrNoAnswer  error = &kindError{KindNoAnswer}
+	ErrForbidden error = &kindError{KindForbidden}
 )
 
 func notSent(message string) *Error { return &Error{Kind: KindNotSent, message: message} }
