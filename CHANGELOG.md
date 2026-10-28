@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.7](https://github.com/haau3/haau3-go/compare/v0.1.6...v0.1.7) (2026-10-28)
+
+
+### Features
+
+* a 403 says why in Code and its message, and every error carries its status text ([#24](https://github.com/haau3/haau3-go/issues/24)) ([5203d76](https://github.com/haau3/haau3-go/commit/5203d76b3654846ae7c77e6b09c21d717a3e66f3))
+* the API's spec at 1.0.0-preview.16 ([#22](https://github.com/haau3/haau3-go/issues/22)) ([8bd70d2](https://github.com/haau3/haau3-go/commit/8bd70d27ea2e6ff969cd9a6930aaad67de46dc21))
+
 ## [0.1.6](https://github.com/haau3/haau3-go/compare/v0.1.5...v0.1.6) (2026-10-28)
 
 
