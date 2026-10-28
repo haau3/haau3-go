@@ -10,13 +10,22 @@ import (
 )
 
 func TestEachOperationSendsItsExampleAndReturnsItsAnswer(t *testing.T) {
-	if len(specExamples) != 37 {
-		t.Fatalf("the spec has %d operations; this release was generated from 37", len(specExamples))
+	// The spec itself, not the generated examples, says how many operations there are, and the media
+	// types each asks for and sends: not a copy of the client's own rule.
+	inSpec := map[string]specOperation{}
+	for _, o := range specOperations(t) {
+		inSpec[o.id] = o
+	}
+	if len(specExamples) != len(inSpec) {
+		t.Fatalf("the spec has %d operations; this release was generated from %d", len(inSpec), len(specExamples))
 	}
 	for _, ex := range specExamples {
 		t.Run(ex.id, func(t *testing.T) {
-			fhirPath := isFHIR(ex.path)
-			rec := record(reply{status: 200, body: []byte(ex.answer), plain: !fhirPath})
+			op, ok := inSpec[ex.id]
+			if !ok {
+				t.Fatalf("%s is not in the spec", ex.id)
+			}
+			rec := record(reply{status: 200, body: []byte(ex.answer), plain: op.answers != "application/fhir+json"})
 			c := testClient(t, rec)
 			var info ResponseInfo
 			got, err := ex.call(context.Background(), c, ex, WithResponseInfo(&info))
@@ -50,16 +59,12 @@ func TestEachOperationSendsItsExampleAndReturnsItsAnswer(t *testing.T) {
 			if got := req.Header.Get("User-Agent"); !strings.HasPrefix(got, "haau3-go/"+Version+" (go 1.") {
 				t.Errorf("User-Agent %q", got)
 			}
-			wantAccept := "application/json"
-			if fhirPath {
-				wantAccept = "application/fhir+json"
-			}
-			if got := req.Header.Get("Accept"); got != wantAccept {
-				t.Errorf("Accept %q, want %q", got, wantAccept)
+			if got := req.Header.Get("Accept"); got != op.answers {
+				t.Errorf("Accept %q, want %q", got, op.answers)
 			}
 			if ex.body != "" {
-				if got := req.Header.Get("Content-Type"); got != "application/fhir+json" {
-					t.Errorf("Content-Type %q", got)
+				if got := req.Header.Get("Content-Type"); got != op.sends {
+					t.Errorf("Content-Type %q, want %q", got, op.sends)
 				}
 				if !sameJSON(t, rec.lastBody(), []byte(ex.body)) {
 					t.Errorf("sent\n%s\nnot the example\n%s", rec.lastBody(), ex.body)
