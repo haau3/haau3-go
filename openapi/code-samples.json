@@ -2,7 +2,7 @@
   "overlay": "1.2.0",
   "info": {
     "title": "Go samples for every operation of the haau3 platform API",
-    "version": "1.0.0-preview.13"
+    "version": "1.0.0-preview.15"
   },
   "extends": "https://api.haau3.com/openapi.json",
   "actions": [
@@ -446,6 +446,18 @@
             "lang": "go",
             "label": "Go",
             "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\t\"os\"\n\n\t\"github.com/haau3/haau3-go\"\n\t\"github.com/haau3/haau3-go/fhir\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tdata, err := os.ReadFile(\"request.json\") // one patient's medication records\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tbody, err := fhir.DecodeResource(data)\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tbundle, err := client.ReconcileMedications(ctx, body)\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(len(bundle.Entry))\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/sandbox/fhir/r4/$process-message'].post",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"encoding/json\"\n\t\"fmt\"\n\t\"log\"\n\t\"os\"\n\n\t\"github.com/haau3/haau3-go\"\n\t\"github.com/haau3/haau3-go/fhir\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tdata, err := os.ReadFile(\"request.json\") // a test member's pharmacy benefit check\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tvar body fhir.Bundle\n\tif err := json.Unmarshal(data, &body); err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tbundle, err := client.SandboxProcessMessage(ctx, &body)\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(len(bundle.Entry))\n}\n"
           }
         ]
       }

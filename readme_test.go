@@ -119,7 +119,7 @@ var (
 			continue
 		}
 		n++
-		fmt.Fprintf(&body, "\nfunc block%d(ctx context.Context, client *haau3.Client, planID, jobID, accessToken string, records, first, message *fhir.Bundle) error {\n%s", n, block)
+		fmt.Fprintf(&body, "\nfunc block%d(ctx context.Context, client *haau3.Client, planID, jobID, accessToken string, records, first, message, sandboxMessage *fhir.Bundle) error {\n%s", n, block)
 		for _, name := range declared(t, block) {
 			fmt.Fprintf(&body, "\t_ = %s\n", name)
 		}

@@ -11,7 +11,7 @@ import (
 )
 
 // SpecVersion is the version of the API's spec this release was generated from.
-const SpecVersion = "1.0.0-preview.13"
+const SpecVersion = "1.0.0-preview.15"
 
 // Each operation of the spec: its method, its path and what its answer may be.
 var (
@@ -37,6 +37,7 @@ var (
 	opReadPractitionerRole          = operation{id: "readPractitionerRole", method: "GET", path: "/v1/fhir/r4/PractitionerRole/{id}", expects: []string{"PractitionerRole"}}
 	opReadQuestionnaire             = operation{id: "readQuestionnaire", method: "GET", path: "/v1/fhir/r4/Questionnaire/{id}", expects: []string{"Questionnaire"}}
 	opReconcileMedications          = operation{id: "reconcileMedications", method: "POST", path: "/v1/fhir/r4/$reconcile-medications", expects: []string{"Bundle"}, bodyTypes: []string{"Bundle", "Parameters"}}
+	opSandboxProcessMessage         = operation{id: "sandboxProcessMessage", method: "POST", path: "/v1/sandbox/fhir/r4/$process-message", expects: []string{"Bundle"}, bodyTypes: []string{"Bundle"}}
 	opSearchEndpoint                = operation{id: "searchEndpoint", method: "GET", path: "/v1/fhir/r4/Endpoint", expects: []string{"Bundle"}}
 	opSearchHealthcareService       = operation{id: "searchHealthcareService", method: "GET", path: "/v1/fhir/r4/HealthcareService", expects: []string{"Bundle"}}
 	opSearchInsurancePlan           = operation{id: "searchInsurancePlan", method: "GET", path: "/v1/fhir/r4/InsurancePlan", expects: []string{"Bundle"}}
@@ -1326,16 +1327,20 @@ func (c *Client) ListSpecialties(ctx context.Context, params ListSpecialtiesPara
 // `no-price-source` or `source-not-available-to-caller` from
 // `https://haau3.com/fhir/CodeSystem/pharmacy-benefits-processing-code`, and a member's request to
 // an insurer that needs the member's authorization carries `payer-authorization-required` when none
-// was sent and `payer-authorization-rejected` when the insurer refused it. A price is an estimate;
-// the pharmacy confirms the price. A member's request receives patient data, so send real patient
-// data only under an executed business associate agreement (BAA) on the Team or Scale plan. Without
-// both, send a member's request only as test data marked as such, the request and every resource in
-// it labelled with the `meta.security` coding `HTEST` from
-// `http://terminology.hl7.org/CodeSystem/v3-ActReason`; anything else is refused with `403`
-// `phi-agreement-required`. A request without patient details needs neither. Nothing a request
-// carries is stored or logged, apart from the request's ids, and every answer is sent with
-// `Cache-Control: no-store`. The operation takes no query parameters and is not offered inside a
-// batch. The contract is published at https://fhir.haau3.com/pharmacy-benefits.html.
+// was sent and `payer-authorization-rejected` when the insurer refused it. A member's request the
+// insurer declines under its own rules carries `insurer-declined-request`, and sending it again
+// gives the same answer. An insurer that prices by NDC is asked about the request's NDC, or, for an
+// RxNorm code, an NDC haau3's RxNorm release holds for the code or one of its branded forms, named
+// in the answer's note; with none held it is not asked and the answer carries `ndc-required`, so
+// send the NDC. A price is an estimate; the pharmacy confirms the price. A member's request
+// receives patient data, so send real patient data only under an executed business associate
+// agreement (BAA) on the Team or Scale plan. Without both, send a member's request only as test
+// data marked as such, the request and every resource in it labelled with the `meta.security`
+// coding `HTEST` from `http://terminology.hl7.org/CodeSystem/v3-ActReason`; anything else is
+// refused with `403` `phi-agreement-required`. A request without patient details needs neither.
+// Nothing a request carries is stored or logged, apart from the request's ids, and every answer is
+// sent with `Cache-Control: no-store`. The operation takes no query parameters and is not offered
+// inside a batch. The contract is published at https://fhir.haau3.com/pharmacy-benefits.html.
 //
 // POST /v1/fhir/r4/$process-message (processMessage):
 // https://docs.haau3.com/api-reference/pharmacy-benefits/check-what-a-medication-costs-pharmacy-benefit-check
@@ -1468,6 +1473,38 @@ func (c *Client) ReadQuestionnaire(ctx context.Context, id string, opts ...Optio
 // https://docs.haau3.com/api-reference/medlist/reconcile-one-patients-medication-records
 func (c *Client) ReconcileMedications(ctx context.Context, body fhir.Resource, opts ...Option) (*fhir.Bundle, error) {
 	return call(ctx, c, &opReconcileMedications, nil, nil, nil, resourceBody(body), decodeAs[fhir.Bundle], opts)
+}
+
+// SandboxProcessMessage: Check a test member's medication cost with a test insurer.
+//
+// The Sandbox's pharmacy benefit check: the same operation as `/v1/fhir/r4/$process-message`, at
+// the Sandbox's FHIR base, `/v1/sandbox/fhir/r4`, where Example Health Plan, a test insurer,
+// answers the CARIN Consumer Real-Time Pharmacy Benefit Check (STU2 ballot, `2.0.0-ballot`) as a
+// payer would, with synthetic data. Every organization may call it on every plan, and each request
+// counts like any other. POST a FHIR `Bundle` of type `message` whose first entry is a
+// MessageHeader with the event `rtpbc-request`: a member's request, with the member's Patient and
+// Coverage, the prescription and its prescriber, and a pharmacy. A request is read by the same
+// rules as Pharmacy Benefits' member's request. The member must be one of the test insurer's test
+// members, named by member ID in `Coverage.subscriberId`, the Coverage's `rxid` class, or a Patient
+// identifier whose system is `https://example-health-plan.test/member-id`; a request for anyone
+// else is answered the error `no-test-member` and nothing else. Send test members only, never a
+// real person. Each medication in the test insurer's formulary table always gets the same answer,
+// by its RxNorm code or NDC: priced with a copay, covered at $0 with an alternative, not covered
+// with an alternative, prior authorization required, or a quantity limit. Any other medication gets
+// a default priced answer, and one test member's requests are always declined, `insurer-declined`.
+// Both errors are coded from `https://haau3.com/fhir/CodeSystem/sandbox-error` in
+// `ClaimResponse.error`. The answer is a `message` Bundle whose MessageHeader answers the
+// request's, with one ClaimResponse naming the insurer by its Payer ID, `SANDBOX-EHP`, and the
+// request's Patient as it was sent, a test member's labelled `HTEST`; a process note says which
+// test member and formulary row answered. Amounts are fixed, whatever the quantity. Nothing a
+// request carries is stored or logged, and every answer is sent with `Cache-Control: no-store`. The
+// operation takes no query parameters. The test members and the formulary table are at
+// https://docs.haau3.com/sandbox/example-health-plan.
+//
+// POST /v1/sandbox/fhir/r4/$process-message (sandboxProcessMessage):
+// https://docs.haau3.com/api-reference/sandbox/check-a-test-members-medication-cost-with-a-test-insurer
+func (c *Client) SandboxProcessMessage(ctx context.Context, body *fhir.Bundle, opts ...Option) (*fhir.Bundle, error) {
+	return call(ctx, c, &opSandboxProcessMessage, nil, nil, nil, bodyOf(body), decodeAs[fhir.Bundle], opts)
 }
 
 // SearchEndpoint: Find endpoints.
