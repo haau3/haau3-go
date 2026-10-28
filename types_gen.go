@@ -27,6 +27,9 @@ type Problem struct {
 	Detail string `json:"detail"`
 	// This request's id as `urn:uuid:<id>`, the same id as the `X-Request-Id` header.
 	Instance string `json:"instance"`
+	// On a 403: why, as a code from `https://haau3.com/fhir/CodeSystem/api-error`, the same one an
+	// OperationOutcome carries in `issue.details.coding`.
+	Code *string `json:"code,omitempty"`
 	// On a 400: one entry per parameter that is not valid.
 	Issues []ProblemIssue `json:"issues,omitempty"`
 }
