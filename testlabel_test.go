@@ -217,8 +217,7 @@ func TestMarkAsTestDataKeepsTheTypeItIsGiven(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// A *fhir.Bundle in is a *fhir.Bundle out, so ProcessMessage takes it with no assertion.
-	var _ *fhir.Bundle = marked
+	// A *fhir.Bundle in is a *fhir.Bundle out, so its Entry reads with no assertion.
 	if !isOnlyHTEST(t, marked) || !isOnlyHTEST(t, marked.Entry[0].Resource) {
 		t.Errorf("%s", mustJSON(t, marked))
 	}
