@@ -80,11 +80,12 @@ plan, err := client.ReadInsurancePlan(ctx, "H2406-013-000")
 network, err := client.CheckInsurancePlanNetwork(ctx, "H3359-038-000", haau3.CheckInsurancePlanNetworkParams{NPI: []string{"1518929058"}})
 
 // Pharmacy Benefits: what a medication would cost, as the CARIN pharmacy benefit check, from a FHIR
-// message Bundle. A member's check carries patient data, so send it only under an executed agreement.
+// message Bundle. It is not yet open to customers.
 checked, err := client.ProcessMessage(ctx, message)
 
 // MedList: one reconciled medication list from one patient's FHIR medication records. It receives
-// patient data, so send it only under an executed agreement.
+// patient data, so send it only under an executed agreement. Test data labelled as such works on
+// every plan, and MarkAsTestData labels a request and every resource in it. Label only made-up data.
 reconciled, err := client.ReconcileMedications(ctx, records)
 
 // Sandbox: the same pharmacy benefit check at /v1/sandbox/fhir/r4, where a test insurer answers
@@ -187,8 +188,8 @@ A 403 is `KindForbidden`, never `KindAuth`: the key was accepted, so there is no
 `Code` says why when the API names it, and its message says the same in words. A test key works only
 in the Sandbox (`test-key-outside-sandbox`: send a live key), and a live key does not work there
 (`live-key-in-sandbox`: send a test key). `phi-agreement-required` means the organization may not
-send patient data, and not every resource in the request is labelled as test data. Without a code,
-the body says what the organization may not do.
+send patient data, and not every resource in the request is labelled as test data: `MarkAsTestData`
+labels made-up data. Without a code, the body says what the organization may not do.
 
 `errors.Is(err, haau3.ErrNoAnswer)` checks the kind alone, and the same for `ErrAuth`,
 `ErrForbidden`, `ErrRefused` and `ErrNotSent`. A no-answer error unwraps to the network error behind it, so
