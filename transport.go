@@ -84,7 +84,7 @@ func (a *answer) context(missing string, expects []string) judgeContext {
 	return judgeContext{
 		requestID: a.header.Get("X-Request-Id"), correlationID: a.header.Get("X-Correlation-Id"),
 		attempts: a.attempts, duration: a.duration, retryAfter: a.header.Get("Retry-After"),
-		missing: missing, expects: expects,
+		missing: missing, expects: expects, statusText: a.statusText,
 	}
 }
 

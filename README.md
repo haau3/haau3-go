@@ -173,12 +173,19 @@ if errors.As(err, &e) {
 		fmt.Println(e.RetryAfter) // when the API said
 		fmt.Println(e.Detail)     // for a timeout or a network failure: what failed, such as "dial: connection refused"
 	case haau3.KindAuth:
-		// the key was missing, unknown or revoked
+		// 401: the key was missing, unknown or revoked. 403: it was accepted, and may not make this request
+		fmt.Println(e.Code) // on a 403, why, when the API names it: "test-key-outside-sandbox", "live-key-in-sandbox"
 	case haau3.KindNotSent:
 		// the SDK refused to send it: a required parameter left empty, a URL on another host
 	}
 }
 ```
+
+A 403 never means the key is wrong: there is nothing to rotate. Its `Code` says why when the API
+names it, and its message says the same in words. A test key works only in the Sandbox
+(`test-key-outside-sandbox`: send a live key), and a live key does not work there
+(`live-key-in-sandbox`: send a test key). Without a code, the body says what the organization may
+not do.
 
 `errors.Is(err, haau3.ErrNoAnswer)` checks the kind alone, and the same for `ErrAuth`,
 `ErrRefused` and `ErrNotSent`. A no-answer error unwraps to the network error behind it, so
@@ -186,7 +193,7 @@ if errors.As(err, &e) {
 the error is the context's: `errors.Is(err, context.Canceled)`.
 
 No answer is never reported as an empty result, and an empty result is never an error. Every error
-the API answered carries `Attempts`, `Duration` and the `RequestID` it answered with.
+the API answered carries `Attempts`, `Duration`, `StatusText` and the `RequestID` it answered with.
 
 An error's message never includes the body the API answered with, and the body is never printed
 when the error is: not by any of `fmt`'s verbs, not when it is wrapped or joined, not by `slog`,
@@ -201,8 +208,8 @@ value. The SDK does not validate each element against FHIR R4, and an element FH
 define is not kept.
 
 An error logs safely as it is: `slog` gives its fields that are set (its name, message, kind,
-status, reason, retry-after, attempts, duration, request id, correlation id and detail), and so
-does `json.Marshal`, never the body or the cause.
+status, status text, code, reason, retry-after, attempts, duration, request id, correlation id and
+detail), and so does `json.Marshal`, never the body or the cause.
 
 ```go
 if _, err := client.ReadInsurancePlan(ctx, planID); err != nil {

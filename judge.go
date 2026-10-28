@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand/v2"
+	"net/http"
 	"reflect"
 	"regexp"
 	"slices"
@@ -158,6 +159,48 @@ type judgeContext struct {
 	// entry is an answer inside a batch: the key is checked once for the whole batch, so a 401 or
 	// 403 on one entry is a refusal of that entry, not of the key.
 	entry bool
+	// statusText is the status's text the answer came with; empty means the standard one.
+	statusText string
+}
+
+// apiErrorSystem is the code system the API names its own reasons in, inside an OperationOutcome's
+// details.coding.
+const apiErrorSystem = "https://haau3.com/fhir/CodeSystem/api-error"
+
+// forbiddenReasons is why the API refused a request with a 403, in the words of each message: the
+// reasons the API names by a code of its own. Any other 403, or one without a code, keeps
+// forbiddenGeneral.
+var forbiddenReasons = map[string]string{
+	"test-key-outside-sandbox": "this is a test key, which works only in the Sandbox",
+	"live-key-in-sandbox":      "this is a live key, which does not work in the Sandbox",
+}
+
+const forbiddenGeneral = "the API key was accepted, and its organization may not make this request"
+
+// apiErrorCode is the API's own code for why it refused a request, when it names one: the
+// api-error coding of an OperationOutcome's first issue that has one, or a problem's code. A
+// code, never words, so it is safe to log.
+func apiErrorCode(outcome *fhir.OperationOutcome, problem *Problem) string {
+	if problem != nil {
+		if problem.Code != nil {
+			return *problem.Code
+		}
+		return ""
+	}
+	if outcome == nil {
+		return ""
+	}
+	for _, issue := range outcome.Issue {
+		if issue.Details == nil {
+			continue
+		}
+		for _, coding := range issue.Details.Coding {
+			if coding.System != nil && *coding.System == apiErrorSystem && coding.Code != nil {
+				return *coding.Code
+			}
+		}
+	}
+	return ""
 }
 
 func noAnswerReason(status int) Reason {
@@ -183,9 +226,13 @@ func attemptsText(n int) string {
 // it was, in words that carry no value a caller sent: the method and the operation's path with its
 // `{id}` left in. body is nil when the answer was not JSON.
 func judge(name string, status int, body []byte, c judgeContext) *Error {
+	statusText := c.statusText
+	if statusText == "" {
+		statusText = http.StatusText(status)
+	}
 	answered := func(kind Kind, message string) *Error {
 		e := &Error{
-			Kind: kind, Status: status, Attempts: c.attempts, Duration: c.duration,
+			Kind: kind, Status: status, StatusText: statusText, Attempts: c.attempts, Duration: c.duration,
 			RequestID: c.requestID, CorrelationID: c.correlationID, message: message,
 		}
 		if status >= 400 {
@@ -228,8 +275,17 @@ func judge(name string, status int, body []byte, c judgeContext) *Error {
 		return e
 	case status < 400:
 		return noAnswer(fmt.Sprintf("%s answered %d, which is not an answer.", name, status), ReasonUnreadable)
-	case (status == 401 || status == 403) && !c.entry:
+	case status == 401 && !c.entry:
 		return answered(KindAuth, fmt.Sprintf("%s was refused: the API key was not accepted (%d).", name, status))
+	case status == 403 && !c.entry:
+		code := apiErrorCode(readErrorBody(body))
+		why, ok := forbiddenReasons[code]
+		if !ok {
+			why = forbiddenGeneral
+		}
+		e := answered(KindAuth, fmt.Sprintf("%s was refused: %s (%d).", name, why, status))
+		e.Code = code
+		return e
 	}
 	return answered(KindRefused, fmt.Sprintf("%s was refused (%d).", name, status))
 }

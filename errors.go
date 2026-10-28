@@ -19,8 +19,9 @@ const (
 	// KindNotSent is a request the SDK refused to send: no API key, a URL on another host than the
 	// client's base URL, a correlation id that is not a UUID, a required parameter left empty.
 	KindNotSent Kind = iota + 1
-	// KindAuth is the API refusing the key: none was sent, it is not one the API knows, or it was
-	// revoked (401, 403).
+	// KindAuth is the API refusing the request because of the key. A 401 means the key itself:
+	// none was sent, it is not one the API knows, or it was revoked. A 403 means the key was
+	// accepted and may not make this request, as Code says when the API names why.
 	KindAuth
 	// KindRefused is the API answering and refusing the request: a parameter it does not take, a
 	// record that does not exist (404), a page that no longer exists (410), a body that is too
@@ -61,7 +62,14 @@ func (k Kind) goName() string {
 }
 
 // errorName is the name the TypeScript and Python SDKs give the same error, so a log reads alike
-// whichever language wrote it.
+// whichever language wrote it: a 403 is their ForbiddenError, a subclass of AuthError.
+func (e *Error) errorName() string {
+	if e.Kind == KindAuth && e.Status == 403 {
+		return "ForbiddenError"
+	}
+	return e.Kind.errorName()
+}
+
 func (k Kind) errorName() string {
 	switch k {
 	case KindAuth:
@@ -113,6 +121,13 @@ type Error struct {
 	Kind Kind
 	// Status is the HTTP status the API answered with, or 0 when it did not answer.
 	Status int
+	// StatusText is that status's text: the answer's own, or the standard one when it came with
+	// none, as HTTP/2 answers do. Empty when the API did not answer.
+	StatusText string
+	// Code is the API's own code for why it refused a request with a 403, from its api-error code
+	// system, when it names one: "test-key-outside-sandbox" (a test key works only in the
+	// Sandbox), "live-key-in-sandbox" (a live key does not work there), "phi-agreement-required".
+	Code string
 	// Reason says why there was no answer, for KindNoAnswer.
 	Reason Reason
 	// RetryAfter is how long to wait before trying again, when the API said (its Retry-After header).
@@ -189,6 +204,12 @@ func (e *Error) GoString() string {
 	if e.Status != 0 {
 		fmt.Fprintf(&b, ", Status: %d", e.Status)
 	}
+	if e.StatusText != "" {
+		fmt.Fprintf(&b, ", StatusText: %q", e.StatusText)
+	}
+	if e.Code != "" {
+		fmt.Fprintf(&b, ", Code: %q", e.Code)
+	}
 	if e.Reason != "" {
 		fmt.Fprintf(&b, ", Reason: %q", string(e.Reason))
 	}
@@ -236,9 +257,15 @@ func (e *Error) MarshalJSON() ([]byte, error) {
 }
 
 func (e *Error) logged() []slog.Attr {
-	attrs := []slog.Attr{slog.String("name", e.Kind.errorName()), slog.String("message", e.message), slog.String("kind", e.Kind.String())}
+	attrs := []slog.Attr{slog.String("name", e.errorName()), slog.String("message", e.message), slog.String("kind", e.Kind.String())}
 	if e.Status != 0 {
 		attrs = append(attrs, slog.Int("status", e.Status))
+	}
+	if e.StatusText != "" {
+		attrs = append(attrs, slog.String("statusText", e.StatusText))
+	}
+	if e.Code != "" {
+		attrs = append(attrs, slog.String("code", e.Code))
 	}
 	if e.Reason != "" {
 		attrs = append(attrs, slog.String("reason", string(e.Reason)))

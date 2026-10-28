@@ -35,7 +35,12 @@ func TestA401Or403IsAnAuthError(t *testing.T) {
 		if e.Kind != KindAuth || e.Status != status || e.RequestID != requestID || !errors.Is(e, ErrAuth) {
 			t.Errorf("%d: %#v", status, e)
 		}
-		if want := fmt.Sprintf("GET /v1/fhir/r4/InsurancePlan/{id} was refused: the API key was not accepted (%d).", status); e.Error() != want {
+		why := "the API key was not accepted"
+		if status == 403 {
+			// A 403 means the key was accepted: there is nothing to rotate.
+			why = "the API key was accepted, and its organization may not make this request"
+		}
+		if want := fmt.Sprintf("GET /v1/fhir/r4/InsurancePlan/{id} was refused: %s (%d).", why, status); e.Error() != want {
 			t.Errorf("%q", e.Error())
 		}
 		if e.Outcome() == nil || *e.Outcome().Issue[0].Code != "not-found" {
@@ -185,5 +190,117 @@ func TestSentinelsMatchTheirKindOnly(t *testing.T) {
 	var got *Error
 	if !errors.As(wrapped, &got) || got != e {
 		t.Error("errors.As did not find the error")
+	}
+}
+
+// A 403 names its reason when the API names it by a code of its own: in an OperationOutcome's
+// api-error coding on a FHIR base, or in a problem's code elsewhere. The message says it in words
+// chosen by the code, never the body's.
+
+const apiError = "https://haau3.com/fhir/CodeSystem/api-error"
+
+func coded(code, system string) map[string]any {
+	return map[string]any{"resourceType": "OperationOutcome", "issue": []any{map[string]any{
+		"severity": "error", "code": "forbidden",
+		"details": map[string]any{"coding": []any{map[string]any{"system": system, "code": code}}, "text": "the API's own words"},
+	}}}
+}
+
+func TestA403NamesATestKeyOutsideTheSandbox(t *testing.T) {
+	e := asError(t, readPlan(t, fhirReply(403, coded("test-key-outside-sandbox", apiError))))
+	if e.Kind != KindAuth || !errors.Is(e, ErrAuth) || e.Code != "test-key-outside-sandbox" {
+		t.Errorf("%#v", e)
+	}
+	if e.Error() != "GET /v1/fhir/r4/InsurancePlan/{id} was refused: this is a test key, which works only in the Sandbox (403)." {
+		t.Errorf("%q", e.Error())
+	}
+	if strings.Contains(e.Error(), "the API's own words") {
+		t.Error("the message quotes the body")
+	}
+	got, _ := json.Marshal(e)
+	if !strings.Contains(string(got), `"name":"ForbiddenError"`) || !strings.Contains(string(got), `"code":"test-key-outside-sandbox"`) {
+		t.Errorf("%s", got)
+	}
+}
+
+func TestA403NamesALiveKeyInTheSandbox(t *testing.T) {
+	bundle := &fhir.Bundle{Type: new("message")}
+	_, err := testClient(t, record(fhirReply(403, coded("live-key-in-sandbox", apiError)))).SandboxProcessMessage(context.Background(), bundle)
+	e := asError(t, err)
+	if e.Code != "live-key-in-sandbox" {
+		t.Errorf("%#v", e)
+	}
+	if e.Error() != "POST /v1/sandbox/fhir/r4/$process-message was refused: this is a live key, which does not work in the Sandbox (403)." {
+		t.Errorf("%q", e.Error())
+	}
+}
+
+func TestA403ReadsItsCodeFromAProblemOffTheFHIRBases(t *testing.T) {
+	forbidden := map[string]any{
+		"type": "https://docs.haau3.com/errors#forbidden", "title": "Forbidden", "status": 403,
+		"detail": "d", "instance": "urn:uuid:x", "code": "test-key-outside-sandbox",
+	}
+	_, err := testClient(t, record(plainReply(403, forbidden))).SearchSlots(context.Background(), SearchSlotsParams{State: new("MA")})
+	e := asError(t, err)
+	if e.Code != "test-key-outside-sandbox" || e.Problem() == nil {
+		t.Errorf("%#v", e)
+	}
+	if e.Error() != "GET /v1/scheduling/slots was refused: this is a test key, which works only in the Sandbox (403)." {
+		t.Errorf("%q", e.Error())
+	}
+}
+
+func TestA403CarriesACodeItHasNoSentenceForUnderTheGeneralMessage(t *testing.T) {
+	e := asError(t, readPlan(t, fhirReply(403, coded("phi-agreement-required", apiError))))
+	if e.Code != "phi-agreement-required" {
+		t.Errorf("%#v", e)
+	}
+	if !strings.HasSuffix(e.Error(), "the API key was accepted, and its organization may not make this request (403).") {
+		t.Errorf("%q", e.Error())
+	}
+}
+
+// Negative controls: no code, and a code from another system, are not the API's reason.
+func TestA403HasNoCodeWhenTheAPINamesNone(t *testing.T) {
+	for _, body := range []any{outcome, coded("test-key-outside-sandbox", "http://example.org/other")} {
+		e := asError(t, readPlan(t, fhirReply(403, body)))
+		if e.Code != "" {
+			t.Errorf("%#v", e)
+		}
+		if !strings.HasSuffix(e.Error(), "the API key was accepted, and its organization may not make this request (403).") {
+			t.Errorf("%q", e.Error())
+		}
+		if got, _ := json.Marshal(e); strings.Contains(string(got), `"code"`) {
+			t.Errorf("%s", got)
+		}
+	}
+}
+
+// Every error the API answered carries its status's text.
+func TestEachErrorTheAPIAnsweredCarriesItsStatusText(t *testing.T) {
+	cases := []struct {
+		status int
+		want   string
+	}{{401, "Unauthorized"}, {403, "Forbidden"}, {404, "Not Found"}, {503, "Service Unavailable"}}
+	for _, c := range cases {
+		e := asError(t, readPlan(t, fhirReply(c.status, outcome)))
+		if e.StatusText != c.want {
+			t.Errorf("%d: %q", c.status, e.StatusText)
+		}
+		if got, _ := json.Marshal(e); !strings.Contains(string(got), fmt.Sprintf(`"statusText":%q`, c.want)) {
+			t.Errorf("%d: %s", c.status, got)
+		}
+	}
+}
+
+// Negative control: a request that got no answer has no status, so no status text either.
+func TestNoStatusTextWhenNoAnswerCame(t *testing.T) {
+	_, err := testClient(t, record(reply{err: errors.New("dial: connection refused")}), WithMaxRetries(0)).ReadInsurancePlan(context.Background(), "x")
+	e := asError(t, err)
+	if e.Kind != KindNoAnswer || e.Status != 0 || e.StatusText != "" {
+		t.Errorf("%#v", e)
+	}
+	if got, _ := json.Marshal(e); strings.Contains(string(got), "statusText") {
+		t.Errorf("%s", got)
 	}
 }
