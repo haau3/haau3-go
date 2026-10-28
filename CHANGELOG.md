@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.0](https://github.com/haau3/haau3-go/compare/v0.1.7...v0.2.0) (2026-10-28)
+
+
+### ⚠ BREAKING CHANGES
+
+* a 403 is KindForbidden, beside KindAuth, which is a 401 only ([#25](https://github.com/haau3/haau3-go/issues/25))
+
+### Features
+
+* a 403 is KindForbidden, beside KindAuth, which is a 401 only ([#25](https://github.com/haau3/haau3-go/issues/25)) ([3b7b8f3](https://github.com/haau3/haau3-go/commit/3b7b8f3718bcace3ed8b6ee9d0be7b3f2f2655d4))
+* MarkAsTestData labels a request and every resource in it as test data ([#26](https://github.com/haau3/haau3-go/issues/26)) ([bed454f](https://github.com/haau3/haau3-go/commit/bed454f5c23038f873f19c8329461dc6971d7694))
+
 ## [0.1.7](https://github.com/haau3/haau3-go/compare/v0.1.6...v0.1.7) (2026-10-28)
 
 
