@@ -31,9 +31,10 @@
 // # Errors
 //
 // Every error the SDK returns is an *Error, but for your own context's, with a Kind: KindAuth,
-// KindRefused, KindNoAnswer, or KindNotSent for a request it refused to send. No answer is never
-// reported as an empty result, and an empty result is never an error. An error never prints the
-// body the API answered with.
+// KindRefused, KindNoAnswer, or KindNotSent for a request it refused to send. A 403's Code says
+// why when the API names it, such as "test-key-outside-sandbox". No answer is never reported as an
+// empty result, and an empty result is never an error. An error never prints the body the API
+// answered with.
 //
 // # With an AI coding agent
 //

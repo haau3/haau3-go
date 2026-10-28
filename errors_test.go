@@ -35,7 +35,12 @@ func TestA401Or403IsAnAuthError(t *testing.T) {
 		if e.Kind != KindAuth || e.Status != status || e.RequestID != requestID || !errors.Is(e, ErrAuth) {
 			t.Errorf("%d: %#v", status, e)
 		}
-		if want := fmt.Sprintf("GET /v1/fhir/r4/InsurancePlan/{id} was refused: the API key was not accepted (%d).", status); e.Error() != want {
+		why := "the API key was not accepted"
+		if status == 403 {
+			// A 403 means the key was accepted: there is nothing to rotate.
+			why = "the API key was accepted, and its organization may not make this request"
+		}
+		if want := fmt.Sprintf("GET /v1/fhir/r4/InsurancePlan/{id} was refused: %s (%d).", why, status); e.Error() != want {
 			t.Errorf("%q", e.Error())
 		}
 		if e.Outcome() == nil || *e.Outcome().Issue[0].Code != "not-found" {
