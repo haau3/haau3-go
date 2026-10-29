@@ -20,6 +20,18 @@ import (
 // The code samples in openapi/code-samples.json, one per operation, each built and run as it is
 // written: a program of its own, with HAAU3_BASE_URL pointing at a stand-in API that answers only
 // the operation's example request, exactly as the spec writes it, and refuses anything else.
+//
+// Against the production API too, on a real key, when asked, as TestLive is:
+//
+//	HAAU3_LIVE_TEST=1 HAAU3_API_KEY=haau3_sk_... go test -run TestEachSampleRunsAsWritten
+//
+// There each sample runs with no address set, as a customer runs it, one at a time. What it must
+// do is set by the key's mode, read from its prefix: a live key (haau3_sk_live_) is answered
+// everywhere but the Sandbox and refused there, a test key (haau3_sk_test_) the reverse, each
+// refusal a KindForbidden error whose message gives its reason. The live key comes from an
+// organization with no agreement on file, which Pharmacy Benefits refuses, since it is not yet
+// open. A key with neither prefix works on both bases, and its run leaves Pharmacy Benefits out.
+// CI sets neither variable.
 
 type sampleOverlay struct {
 	Overlay string `json:"overlay"`
@@ -346,7 +358,8 @@ func TestEachSampleRunsAsWritten(t *testing.T) {
 	bins := buildSamples(t, samples)
 
 	server := standIn(t, ops)
-	run := func(name string, files map[string]any) (string, error) {
+	// With no environment given, the stand-in's; production's is the key alone.
+	run := func(name string, files map[string]any, env ...string) (string, error) {
 		dir := t.TempDir()
 		for file, content := range files {
 			data, _ := json.Marshal(content)
@@ -356,18 +369,24 @@ func TestEachSampleRunsAsWritten(t *testing.T) {
 		}
 		cmd := exec.Command(filepath.Join(bins, name))
 		cmd.Dir = dir
-		cmd.Env = []string{"HAAU3_API_KEY=" + testKey, "HAAU3_BASE_URL=" + server.URL}
+		cmd.Env = env
+		if len(env) == 0 {
+			cmd.Env = []string{"HAAU3_API_KEY=" + testKey, "HAAU3_BASE_URL=" + server.URL}
+		}
 		out, err := cmd.CombinedOutput()
 		return strings.TrimRight(string(out), "\n"), err
 	}
+	// A sample whose body nests resources reads it from request.json; any other ignores the file.
+	filesOf := func(o specOperation) map[string]any {
+		files := map[string]any{}
+		if o.body != nil {
+			files["request.json"] = o.body
+		}
+		return files
+	}
 	for _, o := range ops {
 		t.Run(o.id, func(t *testing.T) {
-			// A sample whose body nests resources reads it from request.json; any other ignores the file.
-			files := map[string]any{}
-			if o.body != nil {
-				files["request.json"] = o.body
-			}
-			out, err := run(o.id, files)
+			out, err := run(o.id, filesOf(o))
 			if err != nil {
 				t.Fatalf("%v\n%s", err, out)
 			}
@@ -382,6 +401,67 @@ func TestEachSampleRunsAsWritten(t *testing.T) {
 			t.Fatalf("a sample sending another request was not refused: %v\n%s", err, out)
 		}
 	})
+	sampleAgainstProduction(t, ops, func(o specOperation, key string) (string, error) {
+		return run(o.id, filesOf(o), "HAAU3_API_KEY="+key)
+	})
+}
+
+// sampleAgainstProduction runs every built sample against the production API, when asked, after
+// the stand-in's runs: what each must do on the key comes from onThisKey.
+func sampleAgainstProduction(t *testing.T, ops []specOperation, run func(specOperation, string) (string, error)) {
+	key := os.Getenv("HAAU3_API_KEY")
+	if os.Getenv("HAAU3_LIVE_TEST") != "1" || key == "" {
+		return
+	}
+	mode := keyMode(key)
+	for _, o := range ops {
+		t.Run("production/"+o.id+"/"+mode+" key", func(t *testing.T) {
+			answers, refused, ok := onThisKey(mode, o)
+			if !ok {
+				t.Skip("a key with neither prefix may belong to an organization Pharmacy Benefits is open to")
+			}
+			out, err := run(o, key)
+			if answers {
+				if err != nil || out == "" {
+					t.Fatalf("%v\n%s", err, out)
+				}
+				return
+			}
+			why := forbiddenGeneral
+			if refused != "" {
+				why = forbiddenReasons[refused]
+			}
+			if err == nil || !strings.Contains(out, why+" (403)") {
+				t.Fatalf("not refused with %q: %v\n%s", why, err, out)
+			}
+		})
+	}
+}
+
+// keyMode is a key's mode from its prefix: "live", "test", or "either" for a key with neither.
+func keyMode(key string) string {
+	switch {
+	case strings.HasPrefix(key, "haau3_sk_live_"):
+		return "live"
+	case strings.HasPrefix(key, "haau3_sk_test_"):
+		return "test"
+	}
+	return "either"
+}
+
+// onThisKey is what a sample must do on a key of this mode: answer, or be refused with this code
+// ("" for none). ok is false for a sample not run on it.
+func onThisKey(mode string, o specOperation) (answers bool, refused string, ok bool) {
+	sandbox := strings.HasPrefix(o.path, "/v1/sandbox/")
+	switch {
+	case mode == "test" && !sandbox:
+		return false, "test-key-outside-sandbox", true
+	case mode == "live" && sandbox:
+		return false, "live-key-in-sandbox", true
+	case o.id == "processMessage":
+		return false, "", mode == "live"
+	}
+	return true, "", true
 }
 
 // buildSamples builds each sample as a program in a module of its own that requires this one, as
