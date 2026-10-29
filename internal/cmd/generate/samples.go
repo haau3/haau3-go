@@ -253,10 +253,11 @@ func answerName(o operation) string {
 }
 
 // printLines show the answer: a resource's id, a Bundle's entry count, each output parameter's
-// name, a search's total, or how many records a list holds.
+// name, a search's total, or how many records a list holds. A CapabilityStatement, which a base's
+// metadata answers without an id, prints its resource type.
 func printLines(s *spec, o operation, name string) ([]string, error) {
 	switch {
-	case len(o.Expects) > 1:
+	case len(o.Expects) > 1, len(o.Expects) == 1 && o.Expects[0] == "CapabilityStatement":
 		return []string{fmt.Sprintf("fmt.Println(%s.ResourceType())", name)}, nil
 	case len(o.Expects) == 1 && o.Expects[0] == "Bundle":
 		return []string{fmt.Sprintf("fmt.Println(len(%s.Entry))", name)}, nil

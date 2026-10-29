@@ -210,7 +210,7 @@ func expectedOutput(o specOperation) string {
 	switch {
 	case o.id == "fhirBatch":
 		return strings.TrimSuffix(strings.Repeat("ok\n", len(answer["entry"].([]any))), "\n")
-	case o.id == "fhirMetadata":
+	case o.id == "fhirMetadata", answer["resourceType"] == "CapabilityStatement":
 		return answer["resourceType"].(string)
 	case answer["resourceType"] == "Bundle":
 		entries, _ := answer["entry"].([]any)

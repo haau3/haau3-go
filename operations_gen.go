@@ -11,7 +11,7 @@ import (
 )
 
 // SpecVersion is the version of the API's spec this release was generated from.
-const SpecVersion = "1.0.0-preview.16"
+const SpecVersion = "1.0.0-preview.18"
 
 // Each operation of the spec: its method, its path and what its answer may be.
 var (
@@ -37,6 +37,7 @@ var (
 	opReadPractitionerRole          = operation{id: "readPractitionerRole", method: "GET", path: "/v1/fhir/r4/PractitionerRole/{id}", expects: []string{"PractitionerRole"}}
 	opReadQuestionnaire             = operation{id: "readQuestionnaire", method: "GET", path: "/v1/fhir/r4/Questionnaire/{id}", expects: []string{"Questionnaire"}}
 	opReconcileMedications          = operation{id: "reconcileMedications", method: "POST", path: "/v1/fhir/r4/$reconcile-medications", expects: []string{"Bundle"}, bodyTypes: []string{"Bundle", "Parameters"}}
+	opSandboxMetadata               = operation{id: "sandboxMetadata", method: "GET", path: "/v1/sandbox/fhir/r4/metadata", expects: []string{"CapabilityStatement"}}
 	opSandboxProcessMessage         = operation{id: "sandboxProcessMessage", method: "POST", path: "/v1/sandbox/fhir/r4/$process-message", expects: []string{"Bundle"}, bodyTypes: []string{"Bundle"}}
 	opSearchEndpoint                = operation{id: "searchEndpoint", method: "GET", path: "/v1/fhir/r4/Endpoint", expects: []string{"Bundle"}}
 	opSearchHealthcareService       = operation{id: "searchHealthcareService", method: "GET", path: "/v1/fhir/r4/HealthcareService", expects: []string{"Bundle"}}
@@ -1473,6 +1474,19 @@ func (c *Client) ReadQuestionnaire(ctx context.Context, id string, opts ...Optio
 // https://docs.haau3.com/api-reference/medlist/reconcile-one-patients-medication-records
 func (c *Client) ReconcileMedications(ctx context.Context, body fhir.Resource, opts ...Option) (*fhir.Bundle, error) {
 	return call(ctx, c, &opReconcileMedications, nil, nil, nil, resourceBody(body), decodeAs[fhir.Bundle], opts)
+}
+
+// SandboxMetadata: The Sandbox's capability statement.
+//
+// FHIR `[base]/metadata` at the Sandbox's FHIR base, `/v1/sandbox/fhir/r4`. Returns the Sandbox's
+// own `CapabilityStatement`, which says what the Sandbox serves: today the pharmacy benefit check,
+// `$process-message`, as CARIN's responder (STU2 ballot, `2.0.0-ballot`), receiving a member's
+// request. It takes no parameters.
+//
+// GET /v1/sandbox/fhir/r4/metadata (sandboxMetadata):
+// https://docs.haau3.com/api-reference/sandbox/the-sandboxs-capability-statement
+func (c *Client) SandboxMetadata(ctx context.Context, opts ...Option) (*fhir.CapabilityStatement, error) {
+	return call(ctx, c, &opSandboxMetadata, nil, nil, nil, nil, decodeAs[fhir.CapabilityStatement], opts)
 }
 
 // SandboxProcessMessage: Check a test member's medication cost with a test insurer.
