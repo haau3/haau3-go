@@ -2,7 +2,7 @@
 
 # API reference
 
-Every operation of the haau3 platform API (`1.0.0-preview.18`) is a method on `*haau3.Client`, named by
+Every operation of the haau3 platform API (`1.0.0-preview.19`) is a method on `*haau3.Client`, named by
 its operationId in Go's style (`fhirMetadata` is `FHIRMetadata`). Each links to its page on
 docs.haau3.com, which shows its parameters and an example exchange. Every method takes a
 `context.Context` first; then the path values; then `body` for an operation that takes one;
