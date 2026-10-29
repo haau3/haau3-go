@@ -2,7 +2,7 @@
   "overlay": "1.2.0",
   "info": {
     "title": "Go samples for every operation of the haau3 platform API",
-    "version": "1.0.0-preview.16"
+    "version": "1.0.0-preview.18"
   },
   "extends": "https://api.haau3.com/openapi.json",
   "actions": [
@@ -289,7 +289,7 @@
           {
             "lang": "go",
             "label": "Go",
-            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tbundle, err := client.SearchHealthcareService(ctx, haau3.SearchHealthcareServiceParams{Location: new(\"Location-ba334cb2-a0f9-4147-ab31-1c5af4ab9a4d\"), Count: new(2)})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(len(bundle.Entry))\n}\n"
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tbundle, err := client.SearchHealthcareService(ctx, haau3.SearchHealthcareServiceParams{ServiceCategory: new(\"pharm\"), LocationAddressState: new(\"FL\"), LocationAddressPostalcode: new(\"33131\"), Count: new(2)})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(len(bundle.Entry))\n}\n"
           }
         ]
       }
@@ -325,7 +325,7 @@
           {
             "lang": "go",
             "label": "Go",
-            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tlocation, err := client.ReadLocation(ctx, \"Location-26e6731f-5e6a-48e4-aa2f-9f4c40cf402b\")\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tif location.ID != nil {\n\t\tfmt.Println(*location.ID)\n\t}\n}\n"
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tlocation, err := client.ReadLocation(ctx, \"Location-5e79e878-cef0-4a63-a41c-b77cfd3f8062\")\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tif location.ID != nil {\n\t\tfmt.Println(*location.ID)\n\t}\n}\n"
           }
         ]
       }
@@ -446,6 +446,18 @@
             "lang": "go",
             "label": "Go",
             "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\t\"os\"\n\n\t\"github.com/haau3/haau3-go\"\n\t\"github.com/haau3/haau3-go/fhir\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tdata, err := os.ReadFile(\"request.json\") // one patient's medication records\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tbody, err := fhir.DecodeResource(data)\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tbundle, err := client.ReconcileMedications(ctx, body)\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(len(bundle.Entry))\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/sandbox/fhir/r4/metadata'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tcapabilityStatement, err := client.SandboxMetadata(ctx)\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tif capabilityStatement.ID != nil {\n\t\tfmt.Println(*capabilityStatement.ID)\n\t}\n}\n"
           }
         ]
       }
