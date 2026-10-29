@@ -425,6 +425,10 @@ func sampleAgainstProduction(t *testing.T, ops []specOperation, run func(specOpe
 				if err != nil || out == "" {
 					t.Fatalf("%v\n%s", err, out)
 				}
+				// A search that finds nothing still answers: its example found something, so this must too.
+				if out == "0" && expectedOutput(o) != "0" {
+					t.Fatalf("found nothing, where the example found %s", expectedOutput(o))
+				}
 				return
 			}
 			why := forbiddenGeneral
