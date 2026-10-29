@@ -115,8 +115,12 @@ create, move or delete a `v*` tag here. The GitHub Release for the tag follows.
 ## Tests
 
 The tests answer the SDK with an `http.RoundTripper` of their own, and a few run against local
-servers that refuse, hang or answer slowly. `TestLive` calls the production API, and runs only with
-`HAAU3_LIVE_TEST=1` and a key in `HAAU3_API_KEY`.
+servers that refuse, hang or answer slowly. `TestLive` and `TestLiveWithoutAnAgreement` call
+the production API, and so does `TestEachSampleRunsAsWritten`, which runs every code sample there as
+a customer would. They run against production only with `HAAU3_LIVE_TEST=1` and a key in
+`HAAU3_API_KEY`. Run them once with a live key (`haau3_sk_live_…`) from an organization with no
+agreement on file, and once with a test key (`haau3_sk_test_…`): what each sample must do follows
+from the key's mode.
 
 `privacy_test.go` plants a marker in every body and renders each error every way it is commonly
 printed: each of `fmt`'s verbs, a wrapped and a joined error, `slog`'s text and JSON handlers,
