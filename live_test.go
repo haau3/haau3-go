@@ -39,6 +39,19 @@ func TestLive(t *testing.T) {
 	if err != nil || glucose.ResourceType() != "Parameters" {
 		t.Fatalf("lookup: %v", err)
 	}
+	text := "Instill 2 drops in the affected ear twice daily"
+	structured, err := client.StructureDosage(ctx, StructureDosageRequest(StructureDosageInput{
+		Text:       text,
+		Medication: &fhir.CodeableConcept{Coding: []fhir.Coding{{System: new(RxNormSystem), Code: new("1923428")}}},
+	}))
+	if err != nil {
+		t.Fatalf("structure dosage: %v", err)
+	}
+	if part, err := Parameter(structured, "dosage"); err != nil || part == nil || deref(part.ValueDosage.Text) != text {
+		t.Fatalf("dosage part: %+v, %v", part, err)
+	} else if flags := ReviewFlags(part.ValueDosage).Flags; len(flags) != 1 || flags[0].Code != "route-form-mismatch" {
+		t.Errorf("flags: %+v", flags)
+	}
 	publishers, err := client.ListPublishers(ctx)
 	if err != nil || publishers.Publishers == nil {
 		t.Fatalf("publishers: %v", err)

@@ -16,6 +16,43 @@ const (
 	rxnormReleaseURL = profileBase + "/structured-sig-rxnorm-release"
 )
 
+// The code systems of a medication's codings, for StructureDosageInput's Medication.
+const (
+	// RxNormSystem is RxNorm's code system.
+	RxNormSystem = "http://www.nlm.nih.gov/research/umls/rxnorm"
+	// NDCSystem is the NDC's code system.
+	NDCSystem = "http://hl7.org/fhir/sid/ndc"
+)
+
+// StructureDosageInput is what StructureDosageRequest builds a StructureDosage request from.
+type StructureDosageInput struct {
+	// Text is a prescription's directions, exactly as written. At most 1,000 characters.
+	Text string
+	// Medication is the medication's codings, RxNorm or NDC, when known, or nil. With an RxNorm code,
+	// the product's dose form checks the dose's unit and the route, and supplies either when the
+	// directions name none.
+	Medication *fhir.CodeableConcept
+}
+
+// StructureDosageRequest is the Parameters StructureDosage takes, from the directions and,
+// optionally, the medication: a "text" part, and a "medication" part when there is one. It checks
+// nothing; the API refuses what it does not accept, with its reason. It builds a batch entry too:
+// Calls.StructureDosage(haau3.StructureDosageRequest(input)).
+//
+//	answer, err := client.StructureDosage(ctx, haau3.StructureDosageRequest(haau3.StructureDosageInput{
+//		Text: "Instill 2 drops in the affected ear twice daily",
+//		Medication: &fhir.CodeableConcept{Coding: []fhir.Coding{
+//			{System: new(haau3.RxNormSystem), Code: new("1923428")},
+//		}},
+//	}))
+func StructureDosageRequest(input StructureDosageInput) *fhir.Parameters {
+	parts := []fhir.ParametersParameter{{Name: new("text"), ValueString: new(input.Text)}}
+	if input.Medication != nil {
+		parts = append(parts, fhir.ParametersParameter{Name: new("medication"), ValueCodeableConcept: input.Medication})
+	}
+	return &fhir.Parameters{Parameter: parts}
+}
+
 // Parameters is every part of a Parameters answer with that name, in order, with no request: the way
 // FHIR operations answer, CodeSystemLookup's "property" parts or StructureDosage's "dosage" part. Each
 // part holds its value in the value[x] its operation names, so read ValueDosage, ValueString and so on
@@ -95,9 +132,7 @@ type DosageReview struct {
 // names, with no request. Each flag is something a person should check: its code, its display, and
 // the words of the directions it is about, when it is about words.
 //
-//	answer, err := client.StructureDosage(ctx, &fhir.Parameters{Parameter: []fhir.ParametersParameter{
-//		{Name: new("text"), ValueString: new("Take 1 tablet by mouth twice daily")},
-//	}})
+//	answer, err := client.StructureDosage(ctx, haau3.StructureDosageRequest(haau3.StructureDosageInput{Text: "Take 1 tablet by mouth twice daily"}))
 //	if err != nil {
 //		return err
 //	}
