@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.3](https://github.com/haau3/haau3-go/compare/v0.2.2...v0.2.3) (2026-10-31)
+
+
+### Features
+
+* Parameters, Parameter and ReviewFlags read a Parameters answer and a Dosage's review flags ([#34](https://github.com/haau3/haau3-go/issues/34)) ([445b772](https://github.com/haau3/haau3-go/commit/445b7724fcaa1f2c4fb7adb864056c9a23b57a53))
+* the API's spec at 1.0.0-preview.20 ([#33](https://github.com/haau3/haau3-go/issues/33)) ([aa53123](https://github.com/haau3/haau3-go/commit/aa531231999e5cc6012c1e0f06ad289b66a966da))
+
 ## [0.2.2](https://github.com/haau3/haau3-go/compare/v0.2.1...v0.2.2) (2026-10-29)
 
 
