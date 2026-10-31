@@ -11,7 +11,7 @@ import (
 )
 
 // SpecVersion is the version of the API's spec this release was generated from.
-const SpecVersion = "1.0.0-preview.19"
+const SpecVersion = "1.0.0-preview.20"
 
 // Each operation of the spec: its method, its path and what its answer may be.
 var (
@@ -50,6 +50,7 @@ var (
 	opSearchProviderLocations       = operation{id: "searchProviderLocations", method: "GET", path: "/v1/scheduling/provider-locations"}
 	opSearchQuestionnaire           = operation{id: "searchQuestionnaire", method: "GET", path: "/v1/fhir/r4/Questionnaire", expects: []string{"Bundle"}}
 	opSearchSlots                   = operation{id: "searchSlots", method: "GET", path: "/v1/scheduling/slots"}
+	opStructureDosage               = operation{id: "structureDosage", method: "POST", path: "/v1/fhir/r4/$structure-dosage", expects: []string{"Parameters"}, bodyTypes: []string{"Parameters"}}
 	opValueSetExpand                = operation{id: "valueSetExpand", method: "GET", path: "/v1/fhir/r4/ValueSet/$expand", expects: []string{"ValueSet"}}
 	opValueSetExpandPost            = operation{id: "valueSetExpandPost", method: "POST", path: "/v1/fhir/r4/ValueSet/$expand", expects: []string{"ValueSet"}, bodyTypes: []string{"Parameters"}}
 	opValueSetValidateCode          = operation{id: "valueSetValidateCode", method: "GET", path: "/v1/fhir/r4/ValueSet/$validate-code", expects: []string{"Parameters"}}
@@ -1742,6 +1743,32 @@ func (c *Client) SearchSlots(ctx context.Context, params SearchSlotsParams, opts
 	return call(ctx, c, &opSearchSlots, nil, query, err, nil, decodeAs[SearchSlotsResponse], opts)
 }
 
+// StructureDosage: Structure a prescription's directions as a FHIR Dosage.
+//
+// FHIR system-level operation `$structure-dosage`. POST a Parameters resource with one `text` part,
+// a prescription's directions as written, at most 1,000 characters, and optionally one `medication`
+// part, the medication's codings as a CodeableConcept (RxNorm or NDC). The answer is a Parameters
+// resource with one `dosage` part: a FHIR Dosage conforming to haau3 Structured Dosage, whose
+// `text` is the directions exactly as sent and whose dose and unit, route, method, timing and
+// as-needed elements are coded where the words support them, in SNOMED CT (Global Patient Set
+// concepts only), NCIt and UCUM. Nothing is invented: an element the directions do not support is
+// absent. Anything a person should check is a review flag on the Dosage, an extension with a code
+// from `https://haau3.com/fhir/CodeSystem/structured-sig-review-flag` and, when the flag is about
+// words, those words. Every Dosage names the engine and vocabulary versions it was written under,
+// and the RxNorm release when the medication's code was looked up. With an RxNorm code, the
+// product's dose form checks the dose's unit and the route, and supplies either when the directions
+// name none, each flagged. Send the directions and the medication's codings only, never a patient's
+// name or identifiers. Nothing a request carries is stored or logged, apart from the request's ids,
+// and every answer is sent with `Cache-Control: no-store`. The operation takes no query parameters,
+// and may be sent inside a batch, one request per entry. The contract is published at
+// https://fhir.haau3.com/OperationDefinition-structure-dosage.html.
+//
+// POST /v1/fhir/r4/$structure-dosage (structureDosage):
+// https://docs.haau3.com/api-reference/structured-sig/structure-a-prescriptions-directions-as-a-fhir-dosage
+func (c *Client) StructureDosage(ctx context.Context, body *fhir.Parameters, opts ...Option) (*fhir.Parameters, error) {
+	return call(ctx, c, &opStructureDosage, nil, nil, nil, bodyOf(body), decodeAs[fhir.Parameters], opts)
+}
+
 // ValueSetExpand: Expand a value set.
 //
 // FHIR `ValueSet/$expand`. Expands a value set canonical to its member codes, with a text filter
@@ -1942,6 +1969,11 @@ func (BatchCalls) SearchPractitionerRole(params SearchPractitionerRoleParams) *C
 func (BatchCalls) SearchQuestionnaire(params SearchQuestionnaireParams) *Call[*fhir.Bundle] {
 	query, err := params.query()
 	return newCall(&opSearchQuestionnaire, nil, query, err, nil, decodeAs[fhir.Bundle])
+}
+
+// StructureDosage is Client.StructureDosage as an entry of a batch, sent by Client.Batch.
+func (BatchCalls) StructureDosage(body *fhir.Parameters) *Call[*fhir.Parameters] {
+	return newCall(&opStructureDosage, nil, nil, nil, bodyOf(body), decodeAs[fhir.Parameters])
 }
 
 // ValueSetExpand is Client.ValueSetExpand as an entry of a batch, sent by Client.Batch.

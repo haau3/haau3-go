@@ -2,7 +2,7 @@
 
 # API reference
 
-Every operation of the haau3 platform API (`1.0.0-preview.19`) is a method on `*haau3.Client`, named by
+Every operation of the haau3 platform API (`1.0.0-preview.20`) is a method on `*haau3.Client`, named by
 its operationId in Go's style (`fhirMetadata` is `FHIRMetadata`). Each links to its page on
 docs.haau3.com, which shows its parameters and an example exchange. Every method takes a
 `context.Context` first; then the path values; then `body` for an operation that takes one;
@@ -16,7 +16,7 @@ checked before sending: `ProcessMessage` takes `WithPayerAuthorization`, sent as
 
 `Client.Batch` sends several of these as one request, each with its own answer or error, from the
 entries `haau3.Calls` makes. It takes every operation on the FHIR base except `FHIRBatch`, `ProcessMessage` and `ReconcileMedications`:
-29 of the 39. See the README's "Several requests in one".
+30 of the 40. See the README's "Several requests in one".
 
 ## Scheduling
 
@@ -110,6 +110,14 @@ One reconciled medication list from one patient's FHIR medication records, as US
 | Method | Request | What it does |
 |---|---|---|
 | [`ReconcileMedications(ctx, body)`](https://docs.haau3.com/api-reference/medlist/reconcile-one-patients-medication-records) | `POST /v1/fhir/r4/$reconcile-medications` | Reconcile one patient's medication records |
+
+## Structured Sig
+
+A prescription's free-text directions as a FHIR Dosage: the dose, unit, route, method and timing coded in SNOMED CT, NCIt and UCUM where the words support them, the directions kept verbatim, and a review flag on anything a person should check. It takes the directions and the medication's codings, never a patient.
+
+| Method | Request | What it does |
+|---|---|---|
+| [`StructureDosage(ctx, body)`](https://docs.haau3.com/api-reference/structured-sig/structure-a-prescriptions-directions-as-a-fhir-dosage) | `POST /v1/fhir/r4/$structure-dosage` | Structure a prescription's directions as a FHIR Dosage |
 
 ## Sandbox
 

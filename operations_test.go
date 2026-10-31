@@ -88,8 +88,8 @@ func TestEveryBatchableOperationAnswersInOneBatch(t *testing.T) {
 			batchable = append(batchable, ex)
 		}
 	}
-	if len(probes) != 29 {
-		t.Fatalf("%d operations can go in a batch; the spec's are 29", len(probes))
+	if len(probes) != 30 {
+		t.Fatalf("%d operations can go in a batch; the spec's are 30", len(probes))
 	}
 	rec := record(reply{handle: specHandler})
 	c := testClient(t, rec)
@@ -162,8 +162,8 @@ func TestTheClientSurfaceIsTheSpecsOperations(t *testing.T) {
 		t.Errorf("Client's methods are\n%v\nnot\n%v", got, want)
 	}
 	calls := reflect.TypeFor[BatchCalls]()
-	if calls.NumMethod() != 29 {
-		t.Errorf("Calls makes %d kinds of entry, not 29", calls.NumMethod())
+	if calls.NumMethod() != 30 {
+		t.Errorf("Calls makes %d kinds of entry, not 30", calls.NumMethod())
 	}
 	for i := range calls.NumMethod() {
 		if slices.Contains(notInABatch, calls.Method(i).Name) {
