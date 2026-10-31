@@ -288,6 +288,46 @@ It gives each entry whose search mode is `match`, or says none. A resource an `_
 `_revinclude` brought, and a search's own `OperationOutcome`, are not among them; `Pages` gives
 every entry. Scheduling's searches page with `Limit` and `Offset`, and answer with a `Total`.
 
+## Reading a Parameters answer
+
+FHIR operations answer with a `Parameters` resource whose parts are named: `CodeSystemLookup`'s
+`display` and `property` parts, `StructureDosage`'s `dosage` part. `haau3.Parameters` gives every part
+with a name and `haau3.Parameter` the one, both with no request, as FHIR's own SDKs read one (Firely's
+`Get` and `GetSingleValue`, HAPI's `ParametersUtil`). A part holds its value in the `value[x]` its
+operation names. `haau3.Parameter` returns an error when two parts share the name.
+
+```go
+lookup, err := client.CodeSystemLookup(ctx, haau3.CodeSystemLookupParams{System: new("http://loinc.org"), Code: "2345-7"})
+if err != nil {
+	return err
+}
+display, err := haau3.Parameter(lookup, "display")
+if err == nil && display != nil && display.ValueString != nil {
+	fmt.Println(*display.ValueString)
+}
+```
+
+Structured Sig answers with one `dosage` part, a FHIR `Dosage`, and writes on it a review flag for
+anything a person should check. `haau3.ReviewFlags` reads each flag's code, display and the words of
+the directions it is about, and the versions the Dosage names:
+
+```go
+answer, err := client.StructureDosage(ctx, &fhir.Parameters{Parameter: []fhir.ParametersParameter{
+	{Name: new("text"), ValueString: new("Instill 2 drops in the affected ear twice daily")},
+}})
+if err != nil {
+	return err
+}
+part, err := haau3.Parameter(answer, "dosage")
+if err == nil && part != nil && part.ValueDosage != nil {
+	review := haau3.ReviewFlags(part.ValueDosage)
+	for _, flag := range review.Flags {
+		fmt.Println(flag.Code, flag.Display, flag.Words)
+	}
+	fmt.Println(review.EngineVersion, review.VocabularyVersion, review.RxnormRelease)
+}
+```
+
 ## Several requests in one
 
 `Batch` sends several operations of the FHIR base as one request. Each entry comes from
