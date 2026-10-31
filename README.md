@@ -90,9 +90,7 @@ reconciled, err := client.ReconcileMedications(ctx, records)
 
 // Structured Sig: a prescription's free-text directions as a FHIR Dosage, each element coded where the
 // words support it and a review flag on anything to check. Send the directions, never a patient.
-structured, err := client.StructureDosage(ctx, &fhir.Parameters{Parameter: []fhir.ParametersParameter{
-	{Name: new("text"), ValueString: new("Take 1 tablet by mouth twice daily")},
-}})
+structured, err := client.StructureDosage(ctx, haau3.StructureDosageRequest(haau3.StructureDosageInput{Text: "Take 1 tablet by mouth twice daily"}))
 
 // Sandbox: the same pharmacy benefit check at /v1/sandbox/fhir/r4, where a test insurer answers
 // with synthetic data for its test members only (https://docs.haau3.com/sandbox/example-health-plan).
@@ -307,14 +305,24 @@ if err == nil && display != nil && display.ValueString != nil {
 }
 ```
 
-Structured Sig answers with one `dosage` part, a FHIR `Dosage`, and writes on it a review flag for
-anything a person should check. `haau3.ReviewFlags` reads each flag's code, display and the words of
-the directions it is about, and the versions the Dosage names:
+## Structured Sig
+
+`haau3.StructureDosageRequest` builds the request `StructureDosage` takes from a
+`haau3.StructureDosageInput`: the directions and, optionally, the medication's codings, RxNorm or
+NDC, as a FHIR `CodeableConcept`. `haau3.RxNormSystem` and `haau3.NDCSystem` are their code systems.
+It builds a batch entry too (`haau3.Calls.StructureDosage(haau3.StructureDosageRequest(input))`).
+
+The answer is one `dosage` part, a FHIR `Dosage`, with a review flag on anything a person should
+check. `haau3.ReviewFlags` reads each flag's code, display and the words of the directions it is
+about, and the versions the Dosage names:
 
 ```go
-answer, err := client.StructureDosage(ctx, &fhir.Parameters{Parameter: []fhir.ParametersParameter{
-	{Name: new("text"), ValueString: new("Instill 2 drops in the affected ear twice daily")},
-}})
+answer, err := client.StructureDosage(ctx, haau3.StructureDosageRequest(haau3.StructureDosageInput{
+	Text: "Instill 2 drops in the affected ear twice daily",
+	Medication: &fhir.CodeableConcept{Coding: []fhir.Coding{
+		{System: new(haau3.RxNormSystem), Code: new("1923428")},
+	}},
+}))
 if err != nil {
 	return err
 }
