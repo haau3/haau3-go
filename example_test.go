@@ -95,3 +95,18 @@ func ExampleWithResponseInfo() {
 	}
 	fmt.Println(info.RequestID, info.Duration, info.Attempts)
 }
+
+func ExampleStructureDosageRequest() {
+	request := haau3.StructureDosageRequest(haau3.StructureDosageInput{
+		Text: "Instill 2 drops in the affected ear twice daily",
+		Medication: &fhir.CodeableConcept{Coding: []fhir.Coding{
+			{System: new(haau3.RxNormSystem), Code: new("1923428")},
+		}},
+	})
+	for _, part := range request.Parameter {
+		fmt.Println(*part.Name)
+	}
+	// Output:
+	// text
+	// medication
+}
