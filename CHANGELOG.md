@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.4](https://github.com/haau3/haau3-go/compare/v0.2.3...v0.2.4) (2026-10-31)
+
+
+### Features
+
+* StructureDosageRequest builds a StructureDosage request from the directions and the medication ([#36](https://github.com/haau3/haau3-go/issues/36)) ([81a7c59](https://github.com/haau3/haau3-go/commit/81a7c59baa6df8315c939d08d12faff1a6e27cfb))
+
 ## [0.2.3](https://github.com/haau3/haau3-go/compare/v0.2.2...v0.2.3) (2026-10-31)
 
 
