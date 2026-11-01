@@ -40,9 +40,9 @@ type StructureDosageInput struct {
 // Calls.StructureDosage(haau3.StructureDosageRequest(input)).
 //
 //	answer, err := client.StructureDosage(ctx, haau3.StructureDosageRequest(haau3.StructureDosageInput{
-//		Text: "Instill 2 drops in the affected ear twice daily",
+//		Text: "Take 1 tablet by mouth daily",
 //		Medication: &fhir.CodeableConcept{Coding: []fhir.Coding{
-//			{System: new(haau3.RxNormSystem), Code: new("1923428")},
+//			{System: new(haau3.RxNormSystem), Code: new("311354")},
 //		}},
 //	}))
 func StructureDosageRequest(input StructureDosageInput) *fhir.Parameters {

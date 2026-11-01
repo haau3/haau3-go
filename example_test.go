@@ -98,9 +98,9 @@ func ExampleWithResponseInfo() {
 
 func ExampleStructureDosageRequest() {
 	request := haau3.StructureDosageRequest(haau3.StructureDosageInput{
-		Text: "Instill 2 drops in the affected ear twice daily",
+		Text: "Take 1 tablet by mouth daily",
 		Medication: &fhir.CodeableConcept{Coding: []fhir.Coding{
-			{System: new(haau3.RxNormSystem), Code: new("1923428")},
+			{System: new(haau3.RxNormSystem), Code: new("311354")},
 		}},
 	})
 	for _, part := range request.Parameter {
