@@ -11,6 +11,7 @@ import (
 )
 
 // The spec's own example of StructureDosage's answer, so a change to that answer's shape fails here.
+// It carries no review flag, so the tests read a flag from flagged, below.
 func structureDosageAnswer(t *testing.T) *fhir.Parameters {
 	t.Helper()
 	i := slices.IndexFunc(specExamples, func(ex specExample) bool { return ex.id == "structureDosage" })
@@ -20,13 +21,29 @@ func structureDosageAnswer(t *testing.T) *fhir.Parameters {
 	return exampleBody[fhir.Parameters](specExamples[i].answer)
 }
 
+// A Dosage with one review flag, as the API writes it for ear drops sent with an eye solution's code.
+var flagged = &fhir.Dosage{
+	Extension: []fhir.Extension{{
+		URL: new(reviewFlagURL),
+		Extension: []fhir.Extension{
+			{URL: new("code"), ValueCoding: &fhir.Coding{
+				System:  new("https://haau3.com/fhir/CodeSystem/structured-sig-review-flag"),
+				Code:    new("route-form-mismatch"),
+				Display: new("Route and dose form differ"),
+			}},
+			{URL: new("words"), ValueString: new("in the affected ear")},
+		},
+	}},
+	Text: new("Instill 2 drops in the affected ear twice daily"),
+}
+
 func TestParametersAndParameterGiveThePartsWithAName(t *testing.T) {
 	answer := structureDosageAnswer(t)
 	if got := len(Parameters(answer, "dosage")); got != 1 {
 		t.Fatalf("%d dosage parts, want 1", got)
 	}
 	part, err := Parameter(answer, "dosage")
-	if err != nil || part == nil || part.ValueDosage == nil || deref(part.ValueDosage.Text) != "Instill 2 drops in the affected ear twice daily" {
+	if err != nil || part == nil || part.ValueDosage == nil || deref(part.ValueDosage.Text) != "Take 1 tablet by mouth daily" {
 		t.Fatalf("Parameter(dosage) = %+v, %v", part, err)
 	}
 }
@@ -57,15 +74,14 @@ func TestParameterIsAnErrorWhenTwoPartsShareTheName(t *testing.T) {
 	}
 }
 
-func TestReviewFlagsReadsTheExamplesFlagWithItsWordsAndItsVersions(t *testing.T) {
+func TestReviewFlagsReadsTheExamplesVersionsAndNoFlag(t *testing.T) {
 	part, err := Parameter(structureDosageAnswer(t), "dosage")
 	if err != nil || part == nil {
 		t.Fatalf("Parameter(dosage) = %v, %v", part, err)
 	}
 	review := ReviewFlags(part.ValueDosage)
-	want := []ReviewFlag{{Code: "route-form-mismatch", Display: "Route and dose form differ", Words: "in the affected ear"}}
-	if !slices.Equal(review.Flags, want) {
-		t.Errorf("Flags = %+v, want %+v", review.Flags, want)
+	if len(review.Flags) != 0 {
+		t.Errorf("Flags = %+v, want none", review.Flags)
 	}
 	version := regexp.MustCompile(`^\d{4}-\d{2}-\d{2}\.v\d+$`)
 	if !version.MatchString(review.EngineVersion) || !version.MatchString(review.VocabularyVersion) {
@@ -73,6 +89,13 @@ func TestReviewFlagsReadsTheExamplesFlagWithItsWordsAndItsVersions(t *testing.T)
 	}
 	if !regexp.MustCompile(`^\d{8}$`).MatchString(review.RxnormRelease) {
 		t.Errorf("RxnormRelease %q", review.RxnormRelease)
+	}
+}
+
+func TestReviewFlagsReadsAFlagWithItsCodeDisplayAndWords(t *testing.T) {
+	want := []ReviewFlag{{Code: "route-form-mismatch", Display: "Route and dose form differ", Words: "in the affected ear"}}
+	if got := ReviewFlags(flagged).Flags; !slices.Equal(got, want) {
+		t.Errorf("Flags = %+v, want %+v", got, want)
 	}
 }
 
