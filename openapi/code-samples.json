@@ -2,7 +2,7 @@
   "overlay": "1.2.0",
   "info": {
     "title": "Go samples for every operation of the haau3 platform API",
-    "version": "1.0.0-preview.20"
+    "version": "1.0.0-preview.21"
   },
   "extends": "https://api.haau3.com/openapi.json",
   "actions": [
@@ -457,7 +457,7 @@
           {
             "lang": "go",
             "label": "Go",
-            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n\t\"github.com/haau3/haau3-go/fhir\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tparameters, err := client.StructureDosage(ctx, &fhir.Parameters{\n\t\tParameter: []fhir.ParametersParameter{\n\t\t\t{Name: new(\"text\"), ValueString: new(\"Instill 2 drops in the affected ear twice daily\")},\n\t\t\t{\n\t\t\t\tName: new(\"medication\"),\n\t\t\t\tValueCodeableConcept: &fhir.CodeableConcept{\n\t\t\t\t\tCoding: []fhir.Coding{\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tCode:    new(\"1923428\"),\n\t\t\t\t\t\t\tDisplay: new(\"timolol 2.5 MG/ML Ophthalmic Solution\"),\n\t\t\t\t\t\t\tSystem:  new(\"http://www.nlm.nih.gov/research/umls/rxnorm\"),\n\t\t\t\t\t\t},\n\t\t\t\t\t},\n\t\t\t\t},\n\t\t\t},\n\t\t},\n\t})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfor _, parameter := range parameters.Parameter {\n\t\tif parameter.Name != nil {\n\t\t\tfmt.Println(*parameter.Name)\n\t\t}\n\t}\n}\n"
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n\t\"github.com/haau3/haau3-go/fhir\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tparameters, err := client.StructureDosage(ctx, &fhir.Parameters{\n\t\tParameter: []fhir.ParametersParameter{\n\t\t\t{Name: new(\"text\"), ValueString: new(\"Take 1 tablet by mouth daily\")},\n\t\t\t{\n\t\t\t\tName: new(\"medication\"),\n\t\t\t\tValueCodeableConcept: &fhir.CodeableConcept{\n\t\t\t\t\tCoding: []fhir.Coding{\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tCode:    new(\"311354\"),\n\t\t\t\t\t\t\tDisplay: new(\"lisinopril 5 MG Oral Tablet\"),\n\t\t\t\t\t\t\tSystem:  new(\"http://www.nlm.nih.gov/research/umls/rxnorm\"),\n\t\t\t\t\t\t},\n\t\t\t\t\t},\n\t\t\t\t},\n\t\t\t},\n\t\t},\n\t})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfor _, parameter := range parameters.Parameter {\n\t\tif parameter.Name != nil {\n\t\t\tfmt.Println(*parameter.Name)\n\t\t}\n\t}\n}\n"
           }
         ]
       }
