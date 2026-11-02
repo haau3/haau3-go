@@ -130,6 +130,7 @@ func decide(r regeneration) decision {
 	}
 	sections := []string{
 		fmt.Sprintf("The API's spec changed from `%s` to `%s`, read from %s with ETag `%s`.", r.fromVersion, r.toVersion, r.specURL, r.etag),
+		"The changelog at https://docs.haau3.com/changelog says in words what changed for callers, under the day it took effect. A version that changed only wording or examples has no entry there.",
 		effect,
 		"If a check fails, this spec needs a change by hand (a method the README calls is gone, say). " +
 			"Push the fix to this branch: haau3-bot never overwrites a commit it did not make.",

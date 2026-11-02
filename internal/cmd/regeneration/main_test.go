@@ -112,7 +112,7 @@ func TestARemovedSecuritySchemeIsNotBreaking(t *testing.T) {
 
 func TestTheBodyNamesBothVersionsTheETagAndTheSource(t *testing.T) {
 	body := decide(regen(fixture(t, "additions"), true)).body
-	for _, want := range []string{"from `1.0.0-preview.2` to `1.0.0-preview.3`", "ETag `W/\"4l7nD8I7mwiHJI4hZ8QHmqfFP1T\"`", "https://api.haau3.com/openapi.json"} {
+	for _, want := range []string{"from `1.0.0-preview.2` to `1.0.0-preview.3`", "ETag `W/\"4l7nD8I7mwiHJI4hZ8QHmqfFP1T\"`", "https://api.haau3.com/openapi.json", "The changelog at https://docs.haau3.com/changelog says in words what changed for callers"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the body lacks %q", want)
 		}
