@@ -2,7 +2,7 @@
   "overlay": "1.2.0",
   "info": {
     "title": "Go samples for every operation of the haau3 platform API",
-    "version": "1.0.0-preview.21"
+    "version": "1.0.0-preview.24"
   },
   "extends": "https://api.haau3.com/openapi.json",
   "actions": [
@@ -25,7 +25,7 @@
           {
             "lang": "go",
             "label": "Go",
-            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfound, err := client.SearchSlots(ctx, haau3.SearchSlotsParams{Publisher: new(\"haau3\"), Limit: new(1)})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(found.Total)\n}\n"
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfound, err := client.SearchSlots(ctx, haau3.SearchSlotsParams{City: new(\"Cambridge\"), State: new(\"MA\"), Limit: new(1)})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(found.Total)\n}\n"
           }
         ]
       }
