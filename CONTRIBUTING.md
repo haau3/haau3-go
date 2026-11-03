@@ -57,6 +57,12 @@ A sample whose request body nests resources, a Bundle's entries or a Parameters 
 reads that body from `request.json`, and says what the file holds in the words of the spec's
 example label.
 
+A sample's client line says which key `HAAU3_API_KEY` must hold, from the operation's `security`,
+or the document's when it has none of its own (`keyComments` in `internal/cmd/generate/spec.go`):
+`bearerAuth`, a live key, is `reads HAAU3_API_KEY`, and `testKeyAuth`, the Sandbox's test key, is
+`reads HAAU3_API_KEY, a test key`. The generator stops on any other security, so a new scheme gets
+its own words there before any sample uses it.
+
 The FHIR types come from HL7's own schema rather than a Go FHIR package, because none is both
 maintained and widely used for R4. A place that holds any resource, such as `Bundle.entry.resource`,
 holds a `fhir.Resource`, read as the type its `resourceType` names.

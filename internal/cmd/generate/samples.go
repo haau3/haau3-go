@@ -71,6 +71,7 @@ const lineWidth = 100
 // operation as `x-codeSamples`, for a documentation site to show beside it. Each sample is a whole
 // program that sends the operation's example request from the spec and prints one field of the
 // answer, except the slot search, a quickstart's first call, which prints the first slot it found.
+// Its client line says which key HAAU3_API_KEY must hold, from the operation's security (keyComment).
 // samples_test.go builds and runs every one, as it is written, against a stand-in API.
 func emitSamples(s *spec, hl7 *fhirSchema) ([]byte, error) {
 	type sample struct {
@@ -245,7 +246,7 @@ func goSample(s *spec, hl7 *fhirSchema, o operation) (string, error) {
 		fmt.Fprintf(&b, "\t%s\n", p)
 	}
 	b.WriteString(")\n\nfunc main() {\n\tctx := context.Background()\n")
-	b.WriteString("\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n")
+	fmt.Fprintf(&b, "\tclient, err := haau3.NewClient() // %s\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n", o.KeyComment)
 	for _, line := range body {
 		b.WriteString("\t" + strings.ReplaceAll(line, "\n", "\n\t") + "\n")
 	}

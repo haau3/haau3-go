@@ -66,6 +66,7 @@ type operation struct {
 	Expects     []string // the FHIR resource types a 200 may be; empty for Scheduling's answers
 	Batchable   bool
 	Refused     bool            // the spec marks it x-haau3-batchable: false
+	KeyComment  string          // what its sample's client line says HAAU3_API_KEY holds
 	Example     json.RawMessage // the spec's example answer
 	BodyExample json.RawMessage // the spec's example request body
 	BodyLabel   string          // the label the spec gives that example
@@ -347,6 +348,11 @@ func (s *spec) readOperation(path, method string, op object, here pointer) (oper
 			return o, fmt.Errorf("%s: a parameter in %v, which the generator does not read", id, p["in"])
 		}
 	}
+	keyComment, err := s.keyComment(id, op)
+	if err != nil {
+		return o, err
+	}
+	o.KeyComment = keyComment
 	answer, mediaType, err := onlyContent(at(op, "responses", "200", "content"), id+"'s 200")
 	if err != nil {
 		return o, err
@@ -403,6 +409,34 @@ func (s *spec) readOperation(path, method string, op object, here pointer) (oper
 		}
 	}
 	return o, nil
+}
+
+// keyComments is what a sample's client line says for each key the spec names: `bearerAuth`, the
+// document's own, is a live key, and `testKeyAuth`, which the Sandbox's operations name, a test key.
+var keyComments = map[string]string{
+	"bearerAuth":  "reads HAAU3_API_KEY",
+	"testKeyAuth": "reads HAAU3_API_KEY, a test key",
+}
+
+// keyComment is what an operation's sample says HAAU3_API_KEY holds, from its security or else the
+// document's. Any other security, none ([]) included, stops the generator, so a new scheme gets its
+// own words in keyComments before a sample uses it.
+func (s *spec) keyComment(id string, op object) (string, error) {
+	security, own := op["security"]
+	if !own {
+		security = s.doc["security"]
+	}
+	if list := asList(security); len(list) == 1 {
+		if schemes, _ := list[0].(object); len(schemes) == 1 {
+			for scheme := range schemes {
+				if comment, ok := keyComments[scheme]; ok {
+					return comment, nil
+				}
+			}
+		}
+	}
+	text, _ := json.Marshal(security)
+	return "", fmt.Errorf("%s: security %s names no key a sample knows", id, text)
 }
 
 // expects is the FHIR resource types a 200 answers with; empty for any other answer, which is not checked.
