@@ -70,7 +70,8 @@ const lineWidth = 100
 // emitSamples writes openapi/code-samples.json: an OpenAPI Overlay that adds a Go sample to every
 // operation as `x-codeSamples`, for a documentation site to show beside it. Each sample is a whole
 // program that sends the operation's example request from the spec and prints one field of the
-// answer. samples_test.go builds and runs every one, as it is written, against a stand-in API.
+// answer, except the slot search, a quickstart's first call, which prints the first slot it found.
+// samples_test.go builds and runs every one, as it is written, against a stand-in API.
 func emitSamples(s *spec, hl7 *fhirSchema) ([]byte, error) {
 	type sample struct {
 		Lang   string `json:"lang"`
@@ -124,12 +125,50 @@ func emitSamples(s *spec, hl7 *fhirSchema) ([]byte, error) {
 	return b.Bytes(), nil
 }
 
+// firstCall is the operation a quickstart makes its first call with.
+const firstCall = "searchSlots"
+
+// firstCallLines are the first call's body: the slot search's example, which names a city, with the
+// first slot it found printed whole as indented JSON, since one field says nothing of what a slot
+// is (and fmt would print its pointers).
+func firstCallLines(o operation) ([]string, error) {
+	var city any
+	for _, p := range o.Query {
+		if p.Wire == "city" {
+			city = p.Example
+		}
+	}
+	name, ok := city.(string)
+	if !ok {
+		return nil, fmt.Errorf("the first call's example names no city")
+	}
+	fields, err := paramFields(o)
+	if err != nil {
+		return nil, err
+	}
+	return []string{
+		fmt.Sprintf("// Open appointment slots, here in %s.", name),
+		fmt.Sprintf("found, err := client.%s(ctx, haau3.%s{%s})", o.Name, o.ParamsType(), strings.Join(fields, ", ")),
+		"if err != nil {", "\tlog.Fatal(err)", "}",
+		`slot, err := json.MarshalIndent(found.Slots[0], "", "  ")`,
+		"if err != nil {", "\tlog.Fatal(err)", "}",
+		"fmt.Println(string(slot))",
+	}, nil
+}
+
 // goSample is one operation's sample, as a whole program, formatted.
 func goSample(s *spec, hl7 *fhirSchema, o operation) (string, error) {
 	imports := []string{"context", "fmt", "log"}
 	module := []string{`"github.com/haau3/haau3-go"`}
 	var body []string
 	switch o.ID {
+	case firstCall:
+		lines, err := firstCallLines(o)
+		if err != nil {
+			return "", err
+		}
+		imports = append(imports, "encoding/json")
+		body = lines
 	case "fhirBatch":
 		lines, err := batchSample(s, o)
 		if err != nil {

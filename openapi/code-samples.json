@@ -25,7 +25,7 @@
           {
             "lang": "go",
             "label": "Go",
-            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfound, err := client.SearchSlots(ctx, haau3.SearchSlotsParams{City: new(\"Cambridge\"), State: new(\"MA\"), Limit: new(1)})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(found.Total)\n}\n"
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"encoding/json\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\t// Open appointment slots, here in Cambridge.\n\tfound, err := client.SearchSlots(ctx, haau3.SearchSlotsParams{City: new(\"Cambridge\"), State: new(\"MA\"), Limit: new(1)})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tslot, err := json.MarshalIndent(found.Slots[0], \"\", \"  \")\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(string(slot))\n}\n"
           }
         ]
       }
