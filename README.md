@@ -94,7 +94,9 @@ structured, err := client.StructureDosage(ctx, haau3.StructureDosageRequest(haau
 
 // Sandbox: the same pharmacy benefit check at /v1/sandbox/fhir/r4, where a test insurer answers
 // with synthetic data for its test members only (https://docs.haau3.com/sandbox/example-health-plan).
-sandboxChecked, err := client.SandboxProcessMessage(ctx, sandboxMessage)
+// It takes a test key, so it has a client of its own.
+sandbox, err := haau3.NewClient(haau3.WithAPIKey(testKey))
+sandboxChecked, err := sandbox.SandboxProcessMessage(ctx, sandboxMessage)
 ```
 
 Every method, grouped by service, with its request and a link to its page on docs.haau3.com, is in

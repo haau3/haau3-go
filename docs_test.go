@@ -19,10 +19,14 @@ func readFile(t *testing.T, name string) string {
 	return string(data)
 }
 
+// readmeCall is a method called on one of the README's clients: `client`, or `sandbox`, the
+// Sandbox's own, made with a test key.
+var readmeCall = regexp.MustCompile(`\b(?:client|sandbox)\.(\w+)\(`)
+
 func TestEveryNameTheREADMEUsesExists(t *testing.T) {
 	readme := readFile(t, "README.md")
 	client := reflect.TypeFor[*Client]()
-	called := regexp.MustCompile(`\bclient\.(\w+)\(`).FindAllStringSubmatch(readme, -1)
+	called := readmeCall.FindAllStringSubmatch(readme, -1)
 	if len(called) < 10 {
 		t.Fatalf("only %d calls found", len(called))
 	}
@@ -84,7 +88,7 @@ func TestTheREADMECallsOneOperationOfEachService(t *testing.T) {
 		}
 	}
 	shown := map[string]bool{}
-	for _, m := range regexp.MustCompile(`\bclient\.(\w+)\(`).FindAllStringSubmatch(readme, -1) {
+	for _, m := range readmeCall.FindAllStringSubmatch(readme, -1) {
 		if tag, ok := byName[m[1]]; ok {
 			shown[tag] = true
 		}
@@ -92,6 +96,34 @@ func TestTheREADMECallsOneOperationOfEachService(t *testing.T) {
 	for tag := range tags {
 		if !shown[tag] {
 			t.Errorf("the README calls nothing of %s", tag)
+		}
+	}
+}
+
+func TestTheREADMESendsTheSandboxsOperationsThroughAClientMadeWithATestKey(t *testing.T) {
+	readme := readFile(t, "README.md")
+	var sandboxOps []string
+	section := ""
+	for _, line := range strings.Split(readFile(t, "api.md"), "\n") {
+		if strings.HasPrefix(line, "## ") {
+			section = strings.TrimPrefix(line, "## ")
+		}
+		if m := regexp.MustCompile("^\\| \\[`(\\w+)\\(").FindStringSubmatch(line); m != nil && section == "Sandbox" {
+			sandboxOps = append(sandboxOps, m[1])
+		}
+	}
+	if len(sandboxOps) == 0 {
+		t.Fatal("api.md lists no Sandbox operation")
+	}
+	for _, want := range []string{"sandbox, err := haau3.NewClient(haau3.WithAPIKey(testKey))", "sandbox.SandboxProcessMessage(ctx, "} {
+		if !strings.Contains(readme, want) {
+			t.Errorf("the README does not say %q", want)
+		}
+	}
+	// The client made from HAAU3_API_KEY never sends one: the Sandbox refuses a live key.
+	for _, name := range sandboxOps {
+		if strings.Contains(readme, "client."+name+"(") {
+			t.Errorf("the README sends %s on the client made from HAAU3_API_KEY", name)
 		}
 	}
 }

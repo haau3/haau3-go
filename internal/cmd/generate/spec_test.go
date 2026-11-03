@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"slices"
 	"strings"
@@ -55,6 +56,101 @@ func TestABatchableMarkOutsideTheFHIRBaseStopsTheGenerator(t *testing.T) {
 	data, _ := specWith(t, "/v1/scheduling/publishers", "get", func(op map[string]any) { op[batchableField] = false })
 	if _, err := parseSpec(data); err == nil || !strings.Contains(err.Error(), "not on the FHIR base") {
 		t.Errorf("got %v", err)
+	}
+}
+
+// sandboxMetadataSample is the Sandbox metadata's sample, from the pinned spec with edit applied to its
+// operation. The operation sends no body, so the sample needs no FHIR schema.
+func sandboxMetadataSample(t *testing.T, edit func(op map[string]any)) (string, error) {
+	t.Helper()
+	data, _ := specWith(t, "/v1/sandbox/fhir/r4/metadata", "get", edit)
+	s, err := parseSpec(data)
+	if err != nil {
+		return "", err
+	}
+	for _, o := range s.Operations {
+		if o.ID == "sandboxMetadata" {
+			return goSample(s, nil, o)
+		}
+	}
+	t.Fatal("the spec has no sandboxMetadata")
+	return "", nil
+}
+
+func TestASampleReadsALiveKeyWhereItsOperationTakesTheDocumentsSecurity(t *testing.T) {
+	source, err := sandboxMetadataSample(t, func(map[string]any) {})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(source, "client, err := haau3.NewClient() // reads HAAU3_API_KEY\n") {
+		t.Errorf("got\n%s", source)
+	}
+}
+
+func TestASampleReadsATestKeyWhereItsOperationNamesTestKeyAuth(t *testing.T) {
+	source, err := sandboxMetadataSample(t, func(op map[string]any) {
+		op["security"] = []any{map[string]any{"testKeyAuth": []any{}}}
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(source, "client, err := haau3.NewClient() // reads HAAU3_API_KEY, a test key\n") {
+		t.Errorf("got\n%s", source)
+	}
+}
+
+func TestASecurityTheSamplesHaveNoWordsForStopsTheGenerator(t *testing.T) {
+	for _, security := range [][]any{
+		{map[string]any{"apiKeyAuth": []any{}}},
+		{},
+		{map[string]any{"bearerAuth": []any{}}, map[string]any{"testKeyAuth": []any{}}},
+		{map[string]any{"bearerAuth": []any{}, "testKeyAuth": []any{}}},
+	} {
+		_, err := sandboxMetadataSample(t, func(op map[string]any) { op["security"] = security })
+		if err == nil || !strings.HasPrefix(err.Error(), "sandboxMetadata: security ") || !strings.HasSuffix(err.Error(), " names no key a sample knows") {
+			t.Errorf("%v: got %v", security, err)
+		}
+	}
+}
+
+func TestEveryCommittedSampleSaysTheKeyItsOperationsSecurityNames(t *testing.T) {
+	data, err := os.ReadFile("../../../openapi/openapi.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, err := parseSpec(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	committed, err := os.ReadFile("../../../openapi/code-samples.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var overlay struct {
+		Actions []struct {
+			Target string `json:"target"`
+			Update struct {
+				Samples []struct {
+					Source string `json:"source"`
+				} `json:"x-codeSamples"`
+			} `json:"update"`
+		} `json:"actions"`
+	}
+	if err := json.Unmarshal(committed, &overlay); err != nil {
+		t.Fatal(err)
+	}
+	sources := map[string]string{}
+	for _, a := range overlay.Actions {
+		sources[a.Target] = a.Update.Samples[0].Source
+	}
+	if len(sources) != len(s.Operations) {
+		t.Fatalf("%d samples for %d operations", len(sources), len(s.Operations))
+	}
+	for _, o := range s.Operations {
+		source := sources[fmt.Sprintf("$.paths['%s'].%s", o.Path, strings.ToLower(o.Method))]
+		if !strings.Contains(source, "haau3.NewClient() // "+o.KeyComment+"\n") {
+			t.Errorf("%s says\n%s", o.ID, source)
+		}
 	}
 }
 
