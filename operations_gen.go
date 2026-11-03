@@ -11,7 +11,7 @@ import (
 )
 
 // SpecVersion is the version of the API's spec this release was generated from.
-const SpecVersion = "1.0.0-preview.21"
+const SpecVersion = "1.0.0-preview.24"
 
 // Each operation of the spec: its method, its path and what its answer may be.
 var (
@@ -1307,8 +1307,8 @@ func (c *Client) ListSpecialties(ctx context.Context, params ListSpecialtiesPara
 // entry is a MessageHeader with one of two events. `rtpbc-request-non-phi` asks for a medication's
 // price without patient details: a Claim naming the product (an NDC of 11 digits with no dashes, or
 // an RxNorm code) and the quantity, with the patient and the coverage masked, and a pharmacy, up to
-// three ZIP codes, or both. It is answered by price sources: Cost Plus Drugs (its mail order and
-// the Team Cuban Card) and ClixRx. `rtpbc-request` asks what a medication would cost a member under
+// three ZIP codes, or both. It is answered by the cash-price sources haau3 connects to, each named
+// in the notes on its prices. `rtpbc-request` asks what a medication would cost a member under
 // their coverage: the member's Patient and Coverage, with the payer's identifier in
 // `payor.identifier`, the prescription and its prescriber, and a pharmacy. It is answered by the
 // member's insurer, found by the payer's Payer ID: a `payor.identifier` whose `type` is `payerid`
