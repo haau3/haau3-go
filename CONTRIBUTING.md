@@ -33,7 +33,8 @@ FHIR R4 (4.0.1), pinned by its sha256. Never edit them by hand:
 - `openapi/code-samples.json`: an [OpenAPI Overlay](https://spec.openapis.org/overlay/latest.html)
   that adds a Go sample to every operation as `x-codeSamples`, for a documentation site to show
   beside it. Each sample is a whole program that sends the operation's example request from the spec
-  and prints one field of the answer. `samples_test.go` builds each one in a module of its own and
+  and prints one field of the answer, except the slot search, a quickstart's first call, which prints
+  the first slot it found. `samples_test.go` builds each one in a module of its own and
   runs it as it is written, with `HAAU3_BASE_URL` pointing at a stand-in that answers only the
   example request.
 

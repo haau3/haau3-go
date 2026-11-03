@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -220,6 +221,22 @@ func batchKeys(t *testing.T, bundle any) []string {
 func expectedOutput(o specOperation) string {
 	answer := o.answer.(map[string]any)
 	switch {
+	case o.id == "searchSlots":
+		// The first call prints its first slot as the SDK decodes it, indented: the fields in
+		// SchedulingSlot's order, and each time as Go writes it.
+		raw, err := json.Marshal(answer["slots"].([]any)[0])
+		if err != nil {
+			return err.Error()
+		}
+		var slot SchedulingSlot
+		if err := json.Unmarshal(raw, &slot); err != nil {
+			return err.Error()
+		}
+		out, err := json.MarshalIndent(slot, "", "  ")
+		if err != nil {
+			return err.Error()
+		}
+		return string(out)
 	case o.id == "fhirBatch":
 		return strings.TrimSuffix(strings.Repeat("ok\n", len(answer["entry"].([]any))), "\n")
 	case o.id == "fhirMetadata", answer["resourceType"] == "CapabilityStatement":
@@ -332,6 +349,23 @@ func TestTheSamplesAreAnOverlayOfOneGoSamplePerOperation(t *testing.T) {
 			strings.Contains(source, "WithBaseURL") || strings.Contains(source, "haau3_sk_") {
 			t.Errorf("%s: a sample reads the key and the address from the environment only:\n%s", o.id, source)
 		}
+	}
+}
+
+// The slot search is the first call: the city it searches, then the first slot it found.
+func TestTheSlotSearchIsTheFirstCall(t *testing.T) {
+	var overlay sampleOverlay
+	readJSON(t, filepath.Join("openapi", "code-samples.json"), &overlay)
+	var source string
+	for _, a := range overlay.Actions {
+		if a.Target == "$.paths['/v1/scheduling/slots'].get" {
+			source = a.Update.Samples[0].Source
+		}
+	}
+	if !regexp.MustCompile(`(?m)^\t// Open appointment slots, here in [A-Z][\w .'-]*\.$`).MatchString(source) ||
+		!strings.Contains(source, "client.SearchSlots(ctx, haau3.SearchSlotsParams{City: ") ||
+		!strings.HasSuffix(source, "\tfmt.Println(string(slot))\n}\n") {
+		t.Errorf("the slot search is not the first call:\n%s", source)
 	}
 }
 
