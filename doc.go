@@ -31,7 +31,8 @@
 // # Errors
 //
 // Every error the SDK returns is an *Error, but for your own context's, with a Kind: KindAuth (401),
-// KindForbidden (403), KindRefused, KindNoAnswer, or KindNotSent for a request it refused to send.
+// KindForbidden (403), KindRefused, KindNoAnswer, or KindNotSent for a request it refused to send or
+// an answer a reader cannot read as one.
 // A 403's Code says why when the API names it, such as "phi-agreement-required". No answer is never reported as an
 // empty result, and an empty result is never an error. An error never prints the body the API
 // answered with.
