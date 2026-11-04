@@ -78,7 +78,8 @@ func sandboxMetadataSample(t *testing.T, edit func(op map[string]any)) (string, 
 }
 
 func TestASampleReadsALiveKeyWhereItsOperationTakesTheDocumentsSecurity(t *testing.T) {
-	source, err := sandboxMetadataSample(t, func(map[string]any) {})
+	// With no security of its own, whichever spec is pinned, the operation takes the document's.
+	source, err := sandboxMetadataSample(t, func(op map[string]any) { delete(op, "security") })
 	if err != nil {
 		t.Fatal(err)
 	}
