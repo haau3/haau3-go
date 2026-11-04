@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
@@ -38,6 +39,17 @@ func TestLive(t *testing.T) {
 	glucose, err := client.CodeSystemLookup(ctx, CodeSystemLookupParams{System: new("http://loinc.org"), Code: "2345-7"})
 	if err != nil || glucose.ResourceType() != "Parameters" {
 		t.Fatalf("lookup: %v", err)
+	}
+	icd, err := client.CodeSystemLookup(ctx, CodeSystemLookupParams{System: new("http://hl7.org/fhir/sid/icd-10-cm"), Code: "E08.37X1"})
+	if err != nil {
+		t.Fatalf("ICD-10-CM lookup: %v", err)
+	}
+	lookup, err := LookupResult(icd)
+	if err != nil || lookup.Abstract == nil || *lookup.Abstract {
+		t.Fatalf("ICD-10-CM LookupResult = %+v, %v", lookup, err)
+	}
+	if got := values(Designations(lookup, DesignationFilter{Use: SynonymUse, Language: "en"})); !slices.Equal(got, []string{"Diab with diabetic macular edema, resolved fol trtmt, r eye"}) {
+		t.Errorf("ICD-10-CM short title = %v", got)
 	}
 	text := "Instill 2 drops in the affected ear twice daily"
 	structured, err := client.StructureDosage(ctx, StructureDosageRequest(StructureDosageInput{
