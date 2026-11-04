@@ -50,7 +50,7 @@ class CheckPublicTextTest(unittest.TestCase):
                 'go get github.com/haau3/haau3-go, imported as "github.com/haau3/haau3-go/fhir".',
                 "From haau3/haau3-go#3, opened by haau3-bot[bot], sent as haau3-go/0.1.0 (go 1.26).",
                 "Also for TypeScript: haau3-node at https://github.com/haau3/haau3-node, and haau3-python.",
-                "PHQ-9 and UTF-8, the plan H2406-013, golang/go#61405 and Go 1.26.9.",
+                "PHQ-9 and UTF-8, ICD-10-CM and ICD-10-PCS, the plan H2406-013, golang/go#61405 and Go 1.26.9.",
                 "* the API's spec at 1.0.0-preview.4 ([#5](https://github.com/haau3/haau3-go/issues/5))",
                 "Write to security@haau3.com. Co-Authored-By: Claude <noreply@anthropic.com>",
                 "A base URL such as https://proxy.example.test/haau3/v1 works.",
