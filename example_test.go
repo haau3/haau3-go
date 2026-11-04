@@ -110,3 +110,24 @@ func ExampleStructureDosageRequest() {
 	// text
 	// medication
 }
+
+func ExampleLookupResult() {
+	// An ICD-10-CM lookup's display and short title, as the API answers them.
+	answer := &fhir.Parameters{Parameter: []fhir.ParametersParameter{
+		{Name: new("display"), ValueString: new("Diabetes mellitus due to underlying condition with diabetic macular edema, resolved following treatment, right eye")},
+		{Name: new("designation"), Part: []fhir.ParametersParameter{
+			{Name: new("language"), ValueCode: new("en")},
+			{Name: new("use"), ValueCoding: &fhir.Coding{System: new(haau3.SynonymUse.System), Code: new(haau3.SynonymUse.Code)}},
+			{Name: new("value"), ValueString: new("Diab with diabetic macular edema, resolved fol trtmt, r eye")},
+		}},
+	}}
+	lookup, err := haau3.LookupResult(answer)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	for _, title := range haau3.Designations(lookup, haau3.DesignationFilter{Use: haau3.SynonymUse, Language: "en"}) {
+		fmt.Println(title.Value)
+	}
+	// Output: Diab with diabetic macular edema, resolved fol trtmt, r eye
+}

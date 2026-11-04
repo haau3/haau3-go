@@ -307,6 +307,54 @@ if err == nil && display != nil && display.ValueString != nil {
 }
 ```
 
+## Reading a lookup and a validation
+
+`haau3.LookupResult` reads a `CodeSystemLookup` answer, typed: the code, its system and version, its
+display, whether it is `Abstract` (not for use, such as an ICD-10-CM header), every designation and
+every property. A property's `Type` names the FHIR type of its `Value`, and a type switch on `Value`
+reads it. `haau3.Designations` finds a code's names by use and language: a use by its system and code
+together, a language as RFC 4647 matches one, so `en` finds `en-US`. ICD-10-CM's short title is its
+`haau3.SynonymUse` designation, where it differs from the display, and every code system the API holds
+names the display again with `haau3.PreferredForLanguageUse`.
+
+```go
+icd, err := client.CodeSystemLookup(ctx, haau3.CodeSystemLookupParams{System: new("http://hl7.org/fhir/sid/icd-10-cm"), Code: "E08.37X1"})
+if err != nil {
+	return err
+}
+icdLookup, err := haau3.LookupResult(icd)
+if err != nil {
+	return err
+}
+for _, title := range haau3.Designations(icdLookup, haau3.DesignationFilter{Use: haau3.SynonymUse, Language: "en"}) {
+	fmt.Println(title.Value)
+}
+for _, property := range icdLookup.Properties {
+	if value, ok := property.Value.(bool); ok {
+		fmt.Println(property.Code, value)
+	}
+}
+```
+
+`haau3.ValidationResult` reads a validate-code answer, from a code system or a value set: `Result`,
+`Display` and `Message`. A display that does not match answers `Result` false with the code's own
+display beside it, which means the code is valid and only the label differs.
+
+```go
+validated, err := client.CodeSystemValidateCode(ctx, haau3.CodeSystemValidateCodeParams{URL: new("http://loinc.org"), Code: "2345-7", Display: new("Glucose")})
+if err != nil {
+	return err
+}
+check, err := haau3.ValidationResult(validated)
+if err == nil && check.Result != nil && !*check.Result {
+	fmt.Println(check.Message, check.Display)
+}
+```
+
+A part either reader does not know is kept, as the answer gave it, in the `Other` list of the level it
+was found at, and a part FHIR allows once that comes twice is an `*Error` of `KindNotSent`. They are
+package functions, so an answer you stored can be read with no client.
+
 ## Structured Sig
 
 `haau3.StructureDosageRequest` builds the request `StructureDosage` takes from a
