@@ -11,7 +11,7 @@ import (
 )
 
 // SpecVersion is the version of the API's spec this release was generated from.
-const SpecVersion = "1.0.0-preview.24"
+const SpecVersion = "1.0.0-preview.25"
 
 // Each operation of the spec: its method, its path and what its answer may be.
 var (
@@ -1482,7 +1482,8 @@ func (c *Client) ReconcileMedications(ctx context.Context, body fhir.Resource, o
 // FHIR `[base]/metadata` at the Sandbox's FHIR base, `/v1/sandbox/fhir/r4`. Returns the Sandbox's
 // own `CapabilityStatement`, which says what the Sandbox serves: today the pharmacy benefit check,
 // `$process-message`, as CARIN's responder (STU2 ballot, `2.0.0-ballot`), receiving a member's
-// request. It takes no parameters.
+// request. It takes no parameters. Send a test key (`haau3_sk_test_…`): a live key is refused
+// with `live-key-in-sandbox`.
 //
 // GET /v1/sandbox/fhir/r4/metadata (sandboxMetadata):
 // https://docs.haau3.com/api-reference/sandbox/the-sandboxs-capability-statement
@@ -1496,7 +1497,8 @@ func (c *Client) SandboxMetadata(ctx context.Context, opts ...Option) (*fhir.Cap
 // the Sandbox's FHIR base, `/v1/sandbox/fhir/r4`, where Example Health Plan, a test insurer,
 // answers the CARIN Consumer Real-Time Pharmacy Benefit Check (STU2 ballot, `2.0.0-ballot`) as a
 // payer would, with synthetic data. Every organization may call it on every plan, and each request
-// counts like any other. POST a FHIR `Bundle` of type `message` whose first entry is a
+// counts like any other. Send a test key (`haau3_sk_test_…`): a live key is refused with
+// `live-key-in-sandbox`. POST a FHIR `Bundle` of type `message` whose first entry is a
 // MessageHeader with the event `rtpbc-request`: a member's request, with the member's Patient and
 // Coverage, the prescription and its prescriber, and a pharmacy. A request is read by the same
 // rules as Pharmacy Benefits' member's request. The member must be one of the test insurer's test
