@@ -6,9 +6,9 @@
 //   - MedList: one reconciled medication list from one patient's FHIR medication records
 //     (medication reconciliation).
 //
-// On the same key and FHIR base: RxNorm and LOINC lookups, value sets and code validation
-// (Terminology), practitioners and organizations from CMS's National Provider Directory (Provider
-// directory), and standard FHIR Questionnaires such as the PHQ-9.
+// On the same key and FHIR base: RxNorm, LOINC and ICD-10-CM lookups, value sets and code
+// validation (Terminology), practitioners and organizations from CMS's National Provider Directory
+// (Provider directory), and standard FHIR Questionnaires such as the PHQ-9.
 //
 // The haau3 platform API is in preview: it may change as we build, usually to add features or improve performance.
 //
