@@ -16,8 +16,10 @@ import (
 type Kind int
 
 const (
-	// KindNotSent is a request the SDK refused to send: no API key, a URL on another host than the
-	// client's base URL, a correlation id that is not a UUID, a required parameter left empty.
+	// KindNotSent is the SDK refusing before anything is sent: a request it will not send (no API
+	// key, a URL on another host than the client's base URL, a correlation id that is not a UUID, a
+	// required parameter left empty), or an answer a reader cannot read as one (two parts with a name
+	// FHIR allows once).
 	KindNotSent Kind = iota + 1
 	// KindAuth is the API not accepting the key (401): none was sent, it is not one the API knows,
 	// or it was revoked. A 403 is never KindAuth: the key was accepted, and the error is

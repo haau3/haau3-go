@@ -80,8 +80,8 @@ func Parameters(answer *fhir.Parameters, name string) []fhir.ParametersParameter
 }
 
 // Parameter is the one part of a Parameters answer with that name, with no request, or nil when there
-// is none. It returns an error when there are two, since which one is meant is then ambiguous;
-// Parameters reads a name that repeats. It reads an answer as FHIR's own SDKs do (Firely's
+// is none. It returns an *Error of KindNotSent when there are two, since which one is meant is then
+// ambiguous; Parameters reads a name that repeats. It reads an answer as FHIR's own SDKs do (Firely's
 // GetSingleValue, HAPI's ParametersUtil).
 //
 //	answer, err := client.CodeSystemLookup(ctx, haau3.CodeSystemLookupParams{System: new("http://loinc.org"), Code: "2345-7"})
@@ -100,7 +100,7 @@ func Parameter(answer *fhir.Parameters, name string) (*fhir.ParametersParameter,
 	case 1:
 		return &found[0], nil
 	default:
-		return nil, fmt.Errorf("haau3: the Parameters holds %d parts named %s, so which one is meant is ambiguous; read them with Parameters", len(found), name)
+		return nil, notSent(fmt.Sprintf("The Parameters holds %d parts named %s, so which one is meant is ambiguous. Read them with Parameters.", len(found), name))
 	}
 }
 

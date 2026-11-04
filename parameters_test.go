@@ -66,8 +66,9 @@ func TestParameterIsAnErrorWhenTwoPartsShareTheName(t *testing.T) {
 		{Name: new("property"), ValueString: new("a")},
 		{Name: new("property"), ValueString: new("b")},
 	}}
-	if _, err := Parameter(two, "property"); err == nil {
-		t.Error("Parameter of a name two parts share answered, want an error")
+	_, err := Parameter(two, "property")
+	if e := asError(t, err); e.Kind != KindNotSent || e.Error() != "The Parameters holds 2 parts named property, so which one is meant is ambiguous. Read them with Parameters." {
+		t.Errorf("Parameter of a name two parts share = %#v, want KindNotSent naming the two parts", e)
 	}
 	if got := Parameters(two, "property"); len(got) != 2 || deref(got[1].ValueString) != "b" {
 		t.Errorf("Parameters(property) = %v, want both", got)
