@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.8](https://github.com/haau3/haau3-go/compare/v0.2.7...v0.2.8) (2026-11-10)
+
+
+### Features
+
+* LookupResult, ValidationResult and Designations read a terminology answer ([#51](https://github.com/haau3/haau3-go/issues/51)) ([4a06a67](https://github.com/haau3/haau3-go/commit/4a06a67870ab2a5387da10cf99e329b054bb4b61))
+
+
+### Bug Fixes
+
+* Parameter's error is an *Error ([#50](https://github.com/haau3/haau3-go/issues/50)) ([c31f9b6](https://github.com/haau3/haau3-go/commit/c31f9b6804f40b873a99cbf2060e4e3512ca82dd))
+* the API's spec at 1.0.0-preview.29 ([#48](https://github.com/haau3/haau3-go/issues/48)) ([a0bcdd8](https://github.com/haau3/haau3-go/commit/a0bcdd8f9ba9d019bf6418fe258294ca4b503613))
+
 ## [0.2.7](https://github.com/haau3/haau3-go/compare/v0.2.6...v0.2.7) (2026-11-04)
 
 
