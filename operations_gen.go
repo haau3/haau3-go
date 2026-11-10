@@ -11,7 +11,7 @@ import (
 )
 
 // SpecVersion is the version of the API's spec this release was generated from.
-const SpecVersion = "1.0.0-preview.25"
+const SpecVersion = "1.0.0-preview.29"
 
 // Each operation of the spec: its method, its path and what its answer may be.
 var (
@@ -92,7 +92,8 @@ type CodeSystemLookupParams struct {
 
 	// DisplayLanguage is `displayLanguage`. Language for the returned display and designations.
 	// Defaults to `en-US`, which also keeps answers small, since a code can have about 30
-	// translations.
+	// translations. RxNorm and ICD-10-CM are held in English only: another language is answered in
+	// English, with a `warning` parameter saying so.
 	DisplayLanguage *string
 
 	// Date is `date`. The date for which the lookup should be valid.
@@ -125,10 +126,13 @@ type CodeSystemValidateCodeParams struct {
 
 	// Display is `display`. Optional display to check against the code's own display. A mismatch
 	// returns `result: false` with the expected display alongside, which means the code is valid and
-	// only the label differs. Do not read that as an invalid code.
+	// only the label differs. Do not read that as an invalid code. On RxNorm and ICD-10-CM any name
+	// the code has matches: RxNorm's other names, and an ICD-10-CM code's short title.
 	Display *string
 
-	// DisplayLanguage is `displayLanguage`. Language to use when checking the display.
+	// DisplayLanguage is `displayLanguage`. Language to use when checking the display. RxNorm and
+	// ICD-10-CM are held in English only: another language is checked against the English names, and
+	// the `message` says so.
 	DisplayLanguage *string
 
 	// Date is `date`. The date for which the validation should be valid.
@@ -1053,21 +1057,26 @@ type ValueSetExpandParams struct {
 	// code is in LOINC. The RxNorm value sets this service holds are
 	// `https://haau3.com/fhir/ValueSet/rxnorm-current-prescribable-content` (every concept of the
 	// release it serves) and `https://haau3.com/fhir/ValueSet/rxnorm-current-prescribable-products`
-	// (its drug products: clinical and branded drugs and packs).
+	// (its drug products: clinical and branded drugs and packs). The ICD-10-CM value sets are
+	// `https://haau3.com/fhir/ValueSet/icd-10-cm` (every code of the release it serves, headers
+	// included) and `https://haau3.com/fhir/ValueSet/icd-10-cm-valid-for-submission` (the codes valid
+	// for submission for HIPAA-covered transactions, so no header).
 	URL *string
 
 	// Filter is `filter`. Text to narrow the expansion: each word must be the start of a word in a
-	// concept's name, and every word must match, with case and accents ignored. On the RxNorm value
-	// sets it is required, with at least 3 letters or digits, and the matches come ranked, best first;
-	// without it, or with fewer, the answer is `422` coded `too-costly`. At most 500 characters. For a
-	// value set resolved from its own source, narrowing is refused with a `400` naming this parameter,
-	// because that source answers a whole expansion or nothing: expand it whole and filter the result.
+	// concept's name, and every word must match, with case and accents ignored. On the RxNorm and
+	// ICD-10-CM value sets it is required, with at least 3 letters or digits, and the matches come
+	// ranked, best first; on ICD-10-CM a code is a name too, so `E11` finds `E11` and the codes below
+	// it. Without it, or with fewer, the answer is `422` coded `too-costly`. At most 500 characters.
+	// For a value set resolved from its own source, narrowing is refused with a `400` naming this
+	// parameter, because that source answers a whole expansion or nothing: expand it whole and filter
+	// the result.
 	Filter *string
 
 	// Count is `count`. Maximum number of concepts to return (`0` returns the total only). On the
-	// RxNorm value sets the first 20 come back when it is not sent. For a value set resolved from its
-	// own source, narrowing is refused with a `400` naming this parameter, because that source answers
-	// a whole expansion or nothing: expand it whole and filter the result.
+	// RxNorm and ICD-10-CM value sets the first 20 come back when it is not sent. For a value set
+	// resolved from its own source, narrowing is refused with a `400` naming this parameter, because
+	// that source answers a whole expansion or nothing: expand it whole and filter the result.
 	Count *int
 
 	// Offset is `offset`. Number of concepts to skip, for paging; `expansion.total` is the number of
@@ -1115,10 +1124,13 @@ type ValueSetValidateCodeParams struct {
 
 	// Display is `display`. Optional display to check against the code's own display. A mismatch
 	// returns `result: false` with the expected display alongside, which means the code is valid and
-	// only the label differs. Do not read that as an invalid code.
+	// only the label differs. Do not read that as an invalid code. On RxNorm and ICD-10-CM any name
+	// the code has matches: RxNorm's other names, and an ICD-10-CM code's short title.
 	Display *string
 
-	// DisplayLanguage is `displayLanguage`. Language to use when checking the display.
+	// DisplayLanguage is `displayLanguage`. Language to use when checking the display. RxNorm and
+	// ICD-10-CM are held in English only: another language is checked against the English names, and
+	// the `message` says so.
 	DisplayLanguage *string
 
 	// Date is `date`. The date for which the validation should be valid.
@@ -1162,7 +1174,14 @@ func (c *Client) CheckInsurancePlanNetwork(ctx context.Context, id string, param
 // CodeSystemLookup: Look up a code.
 //
 // FHIR `CodeSystem/$lookup`. Returns a code's display and requested properties. On POST, a `coding`
-// parameter may stand in for `system` + `code`.
+// parameter may stand in for `system` + `code`. For the code systems this service holds (RxNorm and
+// ICD-10-CM), the answer also names the `code` and the `system`, says whether the code is
+// `abstract` (not for use), and carries the display again as a `designation` used
+// `preferredForLanguage`. ICD-10-CM codes are written dotted (`E11.9`); a lookup answers
+// `notSelectable`, true for a header, gives the code's short title as a `designation` used
+// `synonym` (`http://fhir.org/packages/fhir.tx.support/CodeSystem/designation-usage`, as
+// tx.fhir.org gives it) where it differs from the display, and a code not in the version served is
+// a `404` naming that version.
 //
 // GET /v1/fhir/r4/CodeSystem/$lookup (codeSystemLookup):
 // https://docs.haau3.com/api-reference/terminology/look-up-a-code
@@ -1174,7 +1193,14 @@ func (c *Client) CodeSystemLookup(ctx context.Context, params CodeSystemLookupPa
 // CodeSystemLookupPost: Look up a code.
 //
 // FHIR `CodeSystem/$lookup`. Returns a code's display and requested properties. On POST, a `coding`
-// parameter may stand in for `system` + `code`.
+// parameter may stand in for `system` + `code`. For the code systems this service holds (RxNorm and
+// ICD-10-CM), the answer also names the `code` and the `system`, says whether the code is
+// `abstract` (not for use), and carries the display again as a `designation` used
+// `preferredForLanguage`. ICD-10-CM codes are written dotted (`E11.9`); a lookup answers
+// `notSelectable`, true for a header, gives the code's short title as a `designation` used
+// `synonym` (`http://fhir.org/packages/fhir.tx.support/CodeSystem/designation-usage`, as
+// tx.fhir.org gives it) where it differs from the display, and a code not in the version served is
+// a `404` naming that version.
 //
 // POST /v1/fhir/r4/CodeSystem/$lookup (codeSystemLookupPost):
 // https://docs.haau3.com/api-reference/terminology/look-up-a-code-1
@@ -1187,7 +1213,9 @@ func (c *Client) CodeSystemLookupPost(ctx context.Context, body *fhir.Parameters
 // FHIR `CodeSystem/$validate-code`. Asks whether a code exists in a code system. The ValueSet
 // operation of the same name asks about membership of a particular set instead. On POST, a `coding`
 // or `codeableConcept` parameter may stand in for `url` + `code`; a codeableConcept validates if
-// any of its codings does.
+// any of its codings does. An ICD-10-CM header is a code, so it answers `true`, with a message
+// saying it is not valid for submission; to check a code for a claim, ask `ValueSet/$validate-code`
+// with `https://haau3.com/fhir/ValueSet/icd-10-cm-valid-for-submission`.
 //
 // GET /v1/fhir/r4/CodeSystem/$validate-code (codeSystemValidateCode):
 // https://docs.haau3.com/api-reference/terminology/validate-a-code-in-a-code-system
@@ -1201,7 +1229,9 @@ func (c *Client) CodeSystemValidateCode(ctx context.Context, params CodeSystemVa
 // FHIR `CodeSystem/$validate-code`. Asks whether a code exists in a code system. The ValueSet
 // operation of the same name asks about membership of a particular set instead. On POST, a `coding`
 // or `codeableConcept` parameter may stand in for `url` + `code`; a codeableConcept validates if
-// any of its codings does.
+// any of its codings does. An ICD-10-CM header is a code, so it answers `true`, with a message
+// saying it is not valid for submission; to check a code for a claim, ask `ValueSet/$validate-code`
+// with `https://haau3.com/fhir/ValueSet/icd-10-cm-valid-for-submission`.
 //
 // POST /v1/fhir/r4/CodeSystem/$validate-code (codeSystemValidateCodePost):
 // https://docs.haau3.com/api-reference/terminology/validate-a-code-in-a-code-system-1
@@ -1334,15 +1364,20 @@ func (c *Client) ListSpecialties(ctx context.Context, params ListSpecialtiesPara
 // gives the same answer. An insurer that prices by NDC is asked about the request's NDC, or, for an
 // RxNorm code, an NDC haau3's RxNorm release holds for the code or one of its branded forms, named
 // in the answer's note; with none held it is not asked and the answer carries `ndc-required`, so
-// send the NDC. A price is an estimate; the pharmacy confirms the price. A member's request
-// receives patient data, so send real patient data only under an executed business associate
-// agreement (BAA) on the Team or Scale plan. Without both, send a member's request only as test
-// data marked as such, the request and every resource in it labelled with the `meta.security`
-// coding `HTEST` from `http://terminology.hl7.org/CodeSystem/v3-ActReason`; anything else is
-// refused with `403` `phi-agreement-required`. A request without patient details needs neither.
-// Nothing a request carries is stored or logged, apart from the request's ids, and every answer is
-// sent with `Cache-Control: no-store`. The operation takes no query parameters and is not offered
-// inside a batch. The contract is published at https://fhir.haau3.com/pharmacy-benefits.html.
+// send the NDC. Send the prescription's days supply in
+// `MedicationRequest.dispenseRequest.expectedSupplyDuration`, as a whole number of days with the
+// UCUM code `d`; any other days supply is refused with `400`, and an insurer that requires one is
+// not asked about a request without one: the answer carries `days-supply-required`, beside
+// `ndc-required` when the NDC is missing too. A price is an estimate; the pharmacy confirms the
+// price. A member's request receives patient data, so send real patient data only under an executed
+// business associate agreement (BAA) on the Team or Scale plan. Without both, send a member's
+// request only as test data marked as such, the request and every resource in it labelled with the
+// `meta.security` coding `HTEST` from `http://terminology.hl7.org/CodeSystem/v3-ActReason`;
+// anything else is refused with `403` `phi-agreement-required`. A request without patient details
+// needs neither. Nothing a request carries is stored or logged, apart from the request's ids, and
+// every answer is sent with `Cache-Control: no-store`. The operation takes no query parameters and
+// is not offered inside a batch. The contract is published at
+// https://fhir.haau3.com/pharmacy-benefits.html.
 //
 // POST /v1/fhir/r4/$process-message (processMessage):
 // https://docs.haau3.com/api-reference/pharmacy-benefits/check-what-a-medication-costs-pharmacy-benefit-check
@@ -1774,9 +1809,9 @@ func (c *Client) StructureDosage(ctx context.Context, body *fhir.Parameters, opt
 // ValueSetExpand: Expand a value set.
 //
 // FHIR `ValueSet/$expand`. Expands a value set canonical to its member codes, with a text filter
-// and paging (`count=0` returns the total only). On the RxNorm value sets this service holds, the
-// filter searches by name and is required, and the matches come ranked, best first, with
-// `expansion.total` the number of matches.
+// and paging (`count=0` returns the total only). On the value sets of the code systems this service
+// holds (RxNorm and ICD-10-CM), the filter searches by name, and on ICD-10-CM by code too, and is
+// required, and the matches come ranked, best first, with `expansion.total` the number of matches.
 //
 // GET /v1/fhir/r4/ValueSet/$expand (valueSetExpand):
 // https://docs.haau3.com/api-reference/terminology/expand-a-value-set
@@ -1788,9 +1823,9 @@ func (c *Client) ValueSetExpand(ctx context.Context, params ValueSetExpandParams
 // ValueSetExpandPost: Expand a value set.
 //
 // FHIR `ValueSet/$expand`. Expands a value set canonical to its member codes, with a text filter
-// and paging (`count=0` returns the total only). On the RxNorm value sets this service holds, the
-// filter searches by name and is required, and the matches come ranked, best first, with
-// `expansion.total` the number of matches.
+// and paging (`count=0` returns the total only). On the value sets of the code systems this service
+// holds (RxNorm and ICD-10-CM), the filter searches by name, and on ICD-10-CM by code too, and is
+// required, and the matches come ranked, best first, with `expansion.total` the number of matches.
 //
 // POST /v1/fhir/r4/ValueSet/$expand (valueSetExpandPost):
 // https://docs.haau3.com/api-reference/terminology/expand-a-value-set-1
