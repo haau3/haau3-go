@@ -11,7 +11,7 @@ import (
 //	client, err := haau3.NewClient(haau3.WithTimeout(20 * time.Second))
 //	slots, err := client.SearchSlots(ctx, params, haau3.WithMaxRetries(0))
 //
-// WithBaseURL and WithHTTPClient are for NewClient only, and WithCorrelationID and
+// WithBaseURL, WithHTTPClient and WithAppInfo are for NewClient only, and WithCorrelationID and
 // WithResponseInfo for a call only; either given in the other place is refused with an error of
 // KindNotSent. An option for a header an operation declares, such as WithPayerAuthorization
 // (options_gen.go), is for a call to that operation only.
@@ -27,6 +27,7 @@ type settings struct {
 	headers       [][2]string
 	declared      []declaredValue
 	info          *ResponseInfo
+	appInfo       *AppInfo
 	clientOnly    []string
 	callOnly      []string
 	invalid       []string
@@ -103,9 +104,35 @@ func WithCorrelationID(id string) Option {
 }
 
 // WithHeader sends a header with each request. The SDK's own headers can be replaced this way, the
-// key's included, so use it for what no other option does.
+// key's included, so use it for what no other option does. A User-Agent given this way replaces the
+// SDK's whole value; WithAppInfo names your app and keeps the SDK's own part.
 func WithHeader(name, value string) Option {
 	return func(s *settings) { s.headers = append(s.headers, [2]string{name, value}) }
+}
+
+// AppInfo is your app, named in the User-Agent after the SDK's own as `name/version (url)`: a
+// library, plugin or command line built on the SDK names itself once, with WithAppInfo, and every
+// request the client sends says so.
+type AppInfo struct {
+	// Name is your app's name, such as "my-plugin": letters, digits and the marks
+	// - . _ ~ ! # $ % & ' * + ^ ` |, with no space or slash, as a User-Agent product name takes.
+	// It is required.
+	Name string
+	// Version is its version, such as "1.2.0", in the same characters. Empty sends none.
+	Version string
+	// URL is where to find out about it: an http or https URL, such as
+	// "https://example.com/my-plugin". Empty sends none.
+	URL string
+}
+
+// WithAppInfo names your app in the User-Agent, after the SDK's own:
+// `haau3-go/<version> (go 1.26) my-plugin/1.2.0`. NewClient refuses a value the header cannot carry
+// with an error of KindNotSent, before anything is sent. For NewClient only.
+func WithAppInfo(info AppInfo) Option {
+	return func(s *settings) {
+		s.appInfo = &info
+		s.clientOnly = append(s.clientOnly, "WithAppInfo")
+	}
 }
 
 // declaredValue is the value given to the option for a header an operation declares.

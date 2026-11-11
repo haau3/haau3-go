@@ -34,6 +34,8 @@ type Client struct {
 	maxRetries int
 	http       *http.Client
 	headers    [][2]string
+	// userAgent is the SDK's User-Agent, with WithAppInfo's app after it.
+	userAgent string
 }
 
 // NewClient makes a client. With no options it reads the key from HAAU3_API_KEY, and calls
@@ -69,12 +71,17 @@ func NewClient(opts ...Option) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	ua, err := userAgentOf(s.appInfo)
+	if err != nil {
+		return nil, err
+	}
 	c := &Client{
 		key:        func() string { return key },
 		baseURL:    checked,
 		timeout:    defaultTimeout,
 		maxRetries: defaultMaxRetries,
 		headers:    s.headers,
+		userAgent:  ua,
 	}
 	if s.timeout != nil {
 		c.timeout = *s.timeout

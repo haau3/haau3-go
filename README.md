@@ -133,6 +133,7 @@ An agent can read the docs directly:
 | `WithMaxRetries(n)` | `1` | Retries after a timeout, a network failure, a 429 or a 5xx. |
 | `WithHTTPClient(c)` | a new `*http.Client` | Your own, for a proxy, certificates, connection limits or tracing. For `NewClient` only. |
 | `WithHeader(name, value)` | | A header sent with each request. |
+| `WithAppInfo(info)` | | Your app's name, version and URL, sent in the User-Agent after the SDK's own. For `NewClient` only. |
 
 Each method takes options too, for that call only, as do `Batch`, `Pages`, `Resources` and
 `Request`. Two are for a call only: `WithCorrelationID` and `WithResponseInfo`.
@@ -157,6 +158,21 @@ checked, err := client.ProcessMessage(ctx, message, haau3.WithPayerAuthorization
 connection limits, or tracing such as OpenTelemetry's `otelhttp.NewTransport`. The SDK sends with a
 copy that never follows a redirect, so the key goes only where it was sent, and it never changes or
 closes yours.
+
+`WithAppInfo` names your app in the User-Agent, after the SDK's own, when you build a library, a
+plugin or a command line on the SDK. Its `AppInfo` takes a `Name`, and a `Version` and a `URL` if you
+have them, and every request the client sends carries them:
+
+```go
+named, err := haau3.NewClient(haau3.WithAppInfo(haau3.AppInfo{Name: "my-plugin", Version: "1.2.0"}))
+// User-Agent: haau3-go/<version> (go 1.26) my-plugin/1.2.0
+```
+
+A name and a version each take letters, digits, `-`, `.`, `_` and the other characters RFC 9110
+allows in a User-Agent product, with no space or slash. A `URL` is an http or https URL, sent in
+parentheses after them. `NewClient` refuses anything else with an error of `KindNotSent`, before a
+request is sent. A `User-Agent` given with `WithHeader` replaces the whole User-Agent, the SDK's part
+included.
 
 A retry waits a short, growing interval, or what the API's `Retry-After` header says when that is
 60 seconds or less. A longer `Retry-After` fails at once, carrying it. Nothing is cached: every call
