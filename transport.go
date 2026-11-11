@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"regexp"
 	"runtime"
 	"slices"
@@ -33,6 +34,50 @@ func goVersion(v string) string {
 		return parts[0] + "." + minor
 	}
 	return "devel"
+}
+
+var (
+	// productToken is RFC 9110's `token`, which a User-Agent's product name and version each are.
+	productToken = regexp.MustCompile("^[!#$%&'*+\\-.^_`|~0-9A-Za-z]+$")
+	// commentText is what a User-Agent's comment can carry of a URL: printable ASCII with no space,
+	// parenthesis or backslash.
+	commentText = regexp.MustCompile(`^[\x21-\x27\x2A-\x5B\x5D-\x7E]+$`)
+)
+
+const tokenMarks = "letters, digits and the marks - . _ ~ ! # $ % & ' * + ^ ` |, with no space or slash"
+
+// userAgentOf is the SDK's User-Agent with the caller's app after it, as `name/version (url)`. Each
+// field is checked here, so a value the header cannot carry is refused before anything is sent,
+// in a message that names the field.
+func userAgentOf(info *AppInfo) (string, error) {
+	if info == nil {
+		return userAgent, nil
+	}
+	if info.Name == "" {
+		return "", notSent(`AppInfo.Name is required: your app's name, such as "my-plugin".`)
+	}
+	if !productToken.MatchString(info.Name) {
+		return "", notSent(fmt.Sprintf(`AppInfo.Name takes %s, such as "my-plugin": %q is not one.`, tokenMarks, info.Name))
+	}
+	product := info.Name
+	if info.Version != "" {
+		if !productToken.MatchString(info.Version) {
+			return "", notSent(fmt.Sprintf(`AppInfo.Version takes %s, such as "1.2.0": %q is not one.`, tokenMarks, info.Version))
+		}
+		product += "/" + info.Version
+	}
+	if info.URL != "" {
+		if !commentText.MatchString(info.URL) || !isWebURL(info.URL) {
+			return "", notSent(fmt.Sprintf(`AppInfo.URL takes an http or https URL with a host and no space, parenthesis or backslash, such as "https://example.com/my-plugin": %q is not one.`, info.URL))
+		}
+		product += " (" + info.URL + ")"
+	}
+	return userAgent + " " + product, nil
+}
+
+func isWebURL(text string) bool {
+	u, err := url.Parse(text)
+	return err == nil && (u.Scheme == "http" || u.Scheme == "https") && u.Hostname() != ""
 }
 
 // operation is one operation of the spec, as the generated methods describe it.
@@ -120,7 +165,7 @@ func (c *Client) send(ctx context.Context, method, url string, content []byte, s
 		header.Set("Accept", fhirJSON)
 	}
 	header.Set("Authorization", "Bearer "+s.key)
-	header.Set("User-Agent", userAgent)
+	header.Set("User-Agent", c.userAgent)
 	if content != nil {
 		header.Set("Content-Type", "application/json")
 		if speaksFHIR {
