@@ -131,3 +131,14 @@ func ExampleLookupResult() {
 	}
 	// Output: Diab with diabetic macular edema, resolved fol trtmt, r eye
 }
+
+func ExampleWithAppInfo() {
+	// A library, plugin or command line built on the SDK names itself once. Every request the client
+	// sends then carries `haau3-go/<version> (go 1.26) my-plugin/1.2.0` as its User-Agent.
+	client, err := haau3.NewClient(haau3.WithAppInfo(haau3.AppInfo{Name: "my-plugin", Version: "1.2.0"}))
+	if err != nil {
+		slog.Error("no client", "error", err)
+		return
+	}
+	fmt.Println(client)
+}
