@@ -65,6 +65,10 @@ class CheckPublicTextTest(unittest.TestCase):
         self.assertNotIn("haau3-insurance", check_public_text.SPEC_NAMES)
         self.assertEqual(found("it runs in haau3-insurance"), ["haau3-insurance"])
 
+    def test_it_allows_the_command_lines_repository_and_name_and_still_no_other(self) -> None:
+        self.assertEqual(found("npx haau3, from https://github.com/haau3/haau3-cli (haau3-cli), sends haau3-cli/0.1.0."), [])
+        self.assertEqual(found("see haau3/haau3-client"), ["haau3/haau3-client", "haau3-client"])
+
     def test_a_changelog_link_only_to_this_repository(self) -> None:
         self.assertEqual(found("([#5](https://github.com/haau3/haau3-go/issues/5))"), [])
         self.assertEqual(found("([#5](https://github.com/haau3/haau3-python/issues/5))"), ["#5"])
