@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.2](https://github.com/haau3/haau3-go/compare/v0.3.1...v0.3.2) (2026-11-12)
+
+
+### Features
+
+* Get and Post call any operation by its path, with the typed errors ([#62](https://github.com/haau3/haau3-go/issues/62)) ([05061d1](https://github.com/haau3/haau3-go/commit/05061d108a8d6520c4693faba9c6fb7aed16ca8f))
+
+
+### Bug Fixes
+
+* the API's spec at 1.0.0-preview.34 ([#63](https://github.com/haau3/haau3-go/issues/63)) ([36b2cab](https://github.com/haau3/haau3-go/commit/36b2caba2b1512cb0842aeea763898e11dd109bd))
+
 ## [0.3.1](https://github.com/haau3/haau3-go/compare/v0.3.0...v0.3.1) (2026-11-12)
 
 
