@@ -123,13 +123,14 @@ type answer struct {
 	body       func() []byte
 	attempts   int
 	duration   time.Duration
+	noKey      bool // the request went with no key, which a 401 then says
 }
 
 func (a *answer) context(missing string, expects []string) judgeContext {
 	return judgeContext{
 		requestID: a.header.Get("X-Request-Id"), correlationID: a.header.Get("X-Correlation-Id"),
 		attempts: a.attempts, duration: a.duration, retryAfter: a.header.Get("Retry-After"),
-		missing: missing, expects: expects, statusText: a.statusText,
+		missing: missing, expects: expects, statusText: a.statusText, noKey: a.noKey,
 	}
 }
 
@@ -197,7 +198,7 @@ func (c *Client) send(ctx context.Context, method, url string, content []byte, s
 		var wait time.Duration
 		var again bool
 		if err == nil {
-			a.attempts, a.duration = attempt, time.Since(started)
+			a.attempts, a.duration, a.noKey = attempt, time.Since(started), s.key == ""
 			if wait, again = waitAfterAnswer(attempt, s.maxRetries, a.status, a.header.Get("Retry-After")); !again {
 				return a, nil
 			}

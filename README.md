@@ -129,14 +129,24 @@ statement, err := sandbox.FHIRMetadata(ctx, haau3.FHIRMetadataParams{})
 fmt.Println(sandbox.Environment(), sandbox.BaseURL()) // sandbox https://sandbox.haau3.com
 ```
 
-A key of the other mode is an error of `KindNotSent` from `NewClient`, before anything is sent: a
-test key with `WithEnvironmentProduction`, a live key with `WithEnvironmentSandbox`, or no key
-without the Sandbox named. The error says where the key came from. A key given to one call must be
-of the client's environment too. `Environment` and `BaseURL` on the client say what it resolved.
+A key made before test and live keys goes to production, as a live key does. These are errors of
+`KindNotSent` from `NewClient`, before anything is sent, and the error says where the key came from:
+
+- a test key with `WithEnvironmentProduction`;
+- a live key, or one made before test and live keys, with `WithEnvironmentSandbox` or with the
+  Sandbox's address as the base URL;
+- no key without the Sandbox named;
+- an environment option that a base URL on the other environment's address contradicts;
+- a key with anything before its `haau3_sk_` prefix, such as the quotes an env file kept.
+
+A key given to one call with `WithAPIKey` is sent as it is, to the client's host. `Environment` and
+`BaseURL` on the client say what it resolved.
 
 `SandboxProcessMessage` and `SandboxMetadata`, the Sandbox's first address at
 `/v1/sandbox/fhir/r4`, are deprecated: call `ProcessMessage` and `FHIRMetadata` instead. Until the
 address goes, a client sending to the Sandbox's own host sends them to those operations there.
+`Request` sends a path as it is given, so a first-address path sent on a test key goes to the
+Sandbox's host, which does not serve it.
 
 ## With an AI coding agent
 
@@ -242,7 +252,8 @@ A 403 is `KindForbidden`, never `KindAuth`: the key was accepted, so there is no
 `Code` says why when the API names it, and its message says the same in words. A test key works only
 in the Sandbox (`test-key-outside-sandbox`: send a live key), and a live key does not work there
 (`live-key-in-sandbox`: send a test key). The client sends each key to its own environment, so you
-meet these only with a `WithBaseURL` of your own. `phi-agreement-required` means the organization may not
+meet these with a base URL of your own, a key given to one call, or by calling the deprecated
+`Sandbox…` methods with a live key. `phi-agreement-required` means the organization may not
 send patient data, and not every resource in the request is labelled as test data: `MarkAsTestData`
 labels made-up data. Without a code, the body says what the organization may not do.
 

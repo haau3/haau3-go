@@ -161,6 +161,8 @@ type judgeContext struct {
 	entry bool
 	// statusText is the status's text the answer came with; empty means the standard one.
 	statusText string
+	// noKey is that the request carried no key, so a 401 says that rather than that a key was refused.
+	noKey bool
 }
 
 // apiErrorSystem is the code system the API names its own reasons in, inside an OperationOutcome's
@@ -277,7 +279,11 @@ func judge(name string, status int, body []byte, c judgeContext) *Error {
 	case status < 400:
 		return noAnswer(fmt.Sprintf("%s answered %d, which is not an answer.", name, status), ReasonUnreadable)
 	case status == 401 && !c.entry:
-		return answered(KindAuth, fmt.Sprintf("%s was refused: the API key was not accepted (%d).", name, status))
+		unaccepted := "the API key was not accepted"
+		if c.noKey {
+			unaccepted = "it was sent with no API key"
+		}
+		return answered(KindAuth, fmt.Sprintf("%s was refused: %s (%d).", name, unaccepted, status))
 	case status == 403 && !c.entry:
 		code := apiErrorCode(readErrorBody(body))
 		why, ok := forbiddenReasons[code]

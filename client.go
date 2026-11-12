@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"runtime"
 	"slices"
@@ -21,6 +22,29 @@ var environments = map[Environment]string{
 	EnvironmentProduction: "https://api.haau3.com",
 	EnvironmentSandbox:    "https://sandbox.haau3.com",
 }
+
+// environmentAt is the environment whose own address a base URL is, by its origin, or "" for any
+// other host.
+func environmentAt(baseURL string) Environment {
+	u, err := url.Parse(baseURL)
+	if err != nil {
+		return ""
+	}
+	for name, address := range environments {
+		if a, _ := url.Parse(address); origin(a) == origin(u) {
+			return name
+		}
+	}
+	return ""
+}
+
+var (
+	addressOf = map[Environment]string{
+		EnvironmentProduction: "production's address, https://api.haau3.com",
+		EnvironmentSandbox:    "the Sandbox's address, https://sandbox.haau3.com",
+	}
+	namedAs = map[Environment]string{EnvironmentProduction: "production", EnvironmentSandbox: "the Sandbox"}
+)
 
 // firstAddress is the Sandbox's first address, which its own host does not serve: there, an
 // operation of the first address goes to the same operation at production's path, which answers it
@@ -114,39 +138,47 @@ func NewClient(opts ...Option) (*Client, error) {
 	if len(s.invalid) > 0 {
 		return nil, notSent(s.invalid[0] + ".")
 	}
+	// The key, trimmed. One with anything before its haau3_sk_ prefix (quotes an env file kept, or
+	// "Bearer ") is refused, naming only where it came from.
 	key, keyFrom := os.Getenv("HAAU3_API_KEY"), "HAAU3_API_KEY"
 	if s.apiKey != nil {
 		key, keyFrom = *s.apiKey, "WithAPIKey"
 	}
+	key = strings.TrimSpace(key)
+	if strings.Index(key, "haau3_sk_") > 0 {
+		return nil, notSent(fmt.Sprintf(`The key in %s has something before its haau3_sk_ prefix, such as quotes or "Bearer ". Set the key alone.`, keyFrom))
+	}
 	var named Environment
 	namedIn := ""
-	if fromEnv := os.Getenv("HAAU3_ENVIRONMENT"); fromEnv != "" {
-		// The value is never repeated, since a variable set by mistake can hold anything.
+	if s.environment != nil {
+		named, namedIn = s.environment.environment, s.environment.option
+	} else if fromEnv := strings.ToLower(strings.TrimSpace(os.Getenv("HAAU3_ENVIRONMENT"))); fromEnv != "" {
+		// Read only when no option names the environment, trimmed and in any case, as a shell or an
+		// env file may write it. The value is never repeated, since a variable set by mistake can
+		// hold anything.
 		if Environment(fromEnv) != EnvironmentProduction && Environment(fromEnv) != EnvironmentSandbox {
 			return nil, notSent(`HAAU3_ENVIRONMENT takes "production" or "sandbox", and this is neither.`)
 		}
 		named, namedIn = Environment(fromEnv), "HAAU3_ENVIRONMENT"
 	}
-	if s.environment != nil {
-		named, namedIn = s.environment.environment, s.environment.option
-	}
 	if key == "" && named != EnvironmentSandbox {
 		return nil, notSent(noKey)
 	}
-	environment := named
+	chosen := named
+	var mode keyKind
 	if key != "" {
-		mode := kindOfKey(key)
+		mode = kindOfKey(key)
 		if named != "" {
 			if refused := mismatch(mode, keyFrom, named, namedIn); refused != "" {
 				return nil, notSent(refused)
 			}
 		} else if mode == testKind {
-			environment = EnvironmentSandbox
+			chosen = EnvironmentSandbox
 		} else {
-			environment = EnvironmentProduction
+			chosen = EnvironmentProduction
 		}
 	}
-	base, source := environments[environment], "WithBaseURL"
+	base, source := environments[chosen], "WithBaseURL"
 	if fromEnv := os.Getenv("HAAU3_BASE_URL"); fromEnv != "" {
 		base, source = fromEnv, "HAAU3_BASE_URL"
 	}
@@ -157,6 +189,24 @@ func NewClient(opts ...Option) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	// A base URL that is one environment's own address is that environment. A named environment must
+	// agree with it, and the Sandbox's address takes test keys only. Production's still takes a test
+	// key, at the Sandbox's first address, until that address goes.
+	at := environmentAt(checked)
+	if at != "" && named != "" && named != at {
+		return nil, notSent(fmt.Sprintf("%s names %s, and %s is %s. Name one environment, or a base URL that is neither's.", namedIn, namedAs[named], source, addressOf[at]))
+	}
+	if at == EnvironmentSandbox && mode != "" && mode != testKind {
+		kind := "was made before test and live keys"
+		if mode == liveKind {
+			kind = "is a live key (haau3_sk_live_…)"
+		}
+		return nil, notSent(fmt.Sprintf("The key in %s %s, and %s is %s, which takes test keys only. Use a test key there.", keyFrom, kind, source, addressOf[EnvironmentSandbox]))
+	}
+	environment := chosen
+	if at != "" {
+		environment = at
+	}
 	ua, err := userAgentOf(s.appInfo)
 	if err != nil {
 		return nil, err
@@ -164,9 +214,9 @@ func NewClient(opts ...Option) (*Client, error) {
 	c := &Client{
 		key:         func() string { return key },
 		environment: environment,
-		// The Sandbox's own host: chosen by the key or the environment, named as the base URL, or a
-		// stand-in for it, named with the Sandbox as the environment.
-		onTheSandboxHost: named == EnvironmentSandbox || strings.TrimRight(checked, "/") == environments[EnvironmentSandbox],
+		// The Sandbox's own host, which does not serve its first address: its address, or a stand-in
+		// named with the Sandbox as the environment.
+		onTheSandboxHost: at == EnvironmentSandbox || (at == "" && named == EnvironmentSandbox),
 		baseURL:          checked,
 		timeout:          defaultTimeout,
 		maxRetries:       defaultMaxRetries,
@@ -192,8 +242,18 @@ func NewClient(opts ...Option) (*Client, error) {
 // BaseURL is where the client sends requests.
 func (c *Client) BaseURL() string { return c.baseURL }
 
-// Environment is the environment the client calls: the one named, else the key's mode.
+// Environment is the environment the client calls: the one named, or the one whose address the
+// base URL is, else the key's mode.
 func (c *Client) Environment() Environment { return c.environment }
+
+// what names what the origin lock keeps from another host: the key, or for a client with none, the
+// request itself.
+func (c *Client) what() string {
+	if c.key() == "" {
+		return "a request"
+	}
+	return "the API key"
+}
 
 // sentPath is the path an operation is sent to: its own, or on the Sandbox's own host, which does
 // not serve the first address, the same operation's at production's path.
@@ -244,10 +304,6 @@ func (c *Client) settingsFor(name string, opts []Option, declares ...declaredHea
 		cs.key = *s.apiKey
 		if cs.key == "" {
 			return nil, notSent(name + " was not sent: WithAPIKey was given no key.")
-		}
-		// A call's key never changes the host, so one of the other mode would only be refused there.
-		if refused := mismatch(kindOfKey(cs.key), "WithAPIKey", c.environment, "the client's environment"); refused != "" {
-			return nil, notSent(name + " was not sent: " + strings.ToLower(refused[:1]) + refused[1:])
 		}
 	}
 	if s.timeout != nil {

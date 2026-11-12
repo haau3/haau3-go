@@ -197,10 +197,10 @@ func (c *Client) urlOnBase(pathOrURL, rawQuery, name string) (string, error) {
 	}
 	u, err := url.Parse(target)
 	if err != nil || u.Host == "" {
-		return "", notSent(name + " was not sent: refusing to send the API key to a URL that is not valid.")
+		return "", notSent(name + " was not sent: refusing to send " + c.what() + " to a URL that is not valid.")
 	}
 	if there, here := origin(u), origin(base); there != here {
-		return "", notSent(fmt.Sprintf("%s was not sent: refusing to send the API key to %s, since the client's base URL is %s.", name, there, here))
+		return "", notSent(fmt.Sprintf("%s was not sent: refusing to send %s to %s, since the client's base URL is %s.", name, c.what(), there, here))
 	}
 	if rawQuery != "" {
 		if u.RawQuery != "" {

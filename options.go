@@ -11,7 +11,8 @@ import (
 //	client, err := haau3.NewClient(haau3.WithTimeout(20 * time.Second))
 //	slots, err := client.SearchSlots(ctx, params, haau3.WithMaxRetries(0))
 //
-// WithBaseURL, WithHTTPClient and WithAppInfo are for NewClient only, and WithCorrelationID and
+// WithBaseURL, WithHTTPClient, WithAppInfo, WithEnvironmentSandbox and WithEnvironmentProduction are
+// for NewClient only, and WithCorrelationID and
 // WithResponseInfo for a call only; either given in the other place is refused with an error of
 // KindNotSent. An option for a header an operation declares, such as WithPayerAuthorization
 // (options_gen.go), is for a call to that operation only.
@@ -47,8 +48,9 @@ func apply(opts []Option) *settings {
 // WithAPIKey sets the platform API key. Without it, NewClient reads HAAU3_API_KEY from the
 // environment. Create a key on platform.haau3.com. The key's mode picks the environment: a test key
 // (haau3_sk_test_…) sends every call to the Sandbox, and a live key (haau3_sk_live_…), or one made
-// before test and live keys, to production. Given to a call, a key of the other mode than the
-// client's environment is refused with an error of KindNotSent; a call's key never changes the host.
+// before test and live keys, to production. Given to a call, the key is sent as it is, to the
+// client's host: a call's key never changes the host, and the API's own 403 names a key of the
+// wrong mode.
 func WithAPIKey(key string) Option {
 	return func(s *settings) { s.apiKey = &key }
 }
