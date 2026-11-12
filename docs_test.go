@@ -82,7 +82,8 @@ func TestTheREADMECallsOneOperationOfEachService(t *testing.T) {
 		}
 		if m := regexp.MustCompile("^\\| \\[`(\\w+)\\(").FindStringSubmatch(line); m != nil {
 			byName[m[1]] = section
-			if section != "FHIR base" {
+			// A deprecated operation shows no service: the README calls what replaced it.
+			if section != "FHIR base" && !strings.Contains(line, "| Deprecated. ") {
 				tags[section] = true
 			}
 		}
@@ -100,30 +101,30 @@ func TestTheREADMECallsOneOperationOfEachService(t *testing.T) {
 	}
 }
 
-func TestTheREADMESendsTheSandboxsOperationsThroughAClientMadeWithATestKey(t *testing.T) {
+func TestTheREADMECallsTheSandboxOnATestKeyAndWithNoneAndNoDeprecatedMethod(t *testing.T) {
 	readme := readFile(t, "README.md")
-	var sandboxOps []string
-	section := ""
+	var deprecated []string
 	for _, line := range strings.Split(readFile(t, "api.md"), "\n") {
-		if strings.HasPrefix(line, "## ") {
-			section = strings.TrimPrefix(line, "## ")
-		}
-		if m := regexp.MustCompile("^\\| \\[`(\\w+)\\(").FindStringSubmatch(line); m != nil && section == "Sandbox" {
-			sandboxOps = append(sandboxOps, m[1])
+		if m := regexp.MustCompile("^\\| \\[`(\\w+)\\(").FindStringSubmatch(line); m != nil && strings.Contains(line, "| Deprecated. ") {
+			deprecated = append(deprecated, m[1])
 		}
 	}
-	if len(sandboxOps) == 0 {
-		t.Fatal("api.md lists no Sandbox operation")
+	slices.Sort(deprecated)
+	if !slices.Equal(deprecated, []string{"SandboxMetadata", "SandboxProcessMessage"}) {
+		t.Fatalf("api.md marks %v deprecated", deprecated)
 	}
-	for _, want := range []string{"sandbox, err := haau3.NewClient(haau3.WithAPIKey(testKey))", "sandbox.SandboxProcessMessage(ctx, "} {
+	for _, want := range []string{
+		"sandbox, err := haau3.NewClient(haau3.WithAPIKey(testKey))",
+		"sandbox.ProcessMessage(ctx, ",
+		"sandbox, err := haau3.NewClient(haau3.WithEnvironmentSandbox())",
+	} {
 		if !strings.Contains(readme, want) {
 			t.Errorf("the README does not say %q", want)
 		}
 	}
-	// The client made from HAAU3_API_KEY never sends one: the Sandbox refuses a live key.
-	for _, name := range sandboxOps {
-		if strings.Contains(readme, "client."+name+"(") {
-			t.Errorf("the README sends %s on the client made from HAAU3_API_KEY", name)
+	for _, name := range deprecated {
+		if strings.Contains(readme, "."+name+"(") {
+			t.Errorf("the README calls %s, which is deprecated", name)
 		}
 	}
 }

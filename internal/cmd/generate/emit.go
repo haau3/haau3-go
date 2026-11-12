@@ -214,6 +214,9 @@ func emitOperations(s *spec) string {
 		for _, h := range o.Headers {
 			doc += fmt.Sprintf("\n\n%s sends %s, checked before sending.", h.Option, h.Wire)
 		}
+		if o.Deprecated != "" {
+			doc += "\n\nDeprecated: " + o.Deprecated
+		}
 		comment(&b, "", doc)
 		args := strings.Join(append([]string{"ctx context.Context"}, append(declared, "opts ...Option")...), ", ")
 		fmt.Fprintf(&b, "func (c *Client) %s(%s) (%s, error) {\n", o.Name, args, o.Answer)
@@ -541,7 +544,11 @@ Every method also takes the per-call options ` + "`WithTimeout`, `WithMaxRetries
 		for _, o := range byTag[tag] {
 			_, names := o.methodArgs()
 			sig := fmt.Sprintf("%s(%s)", o.Name, strings.Join(append([]string{"ctx"}, names...), ", "))
-			fmt.Fprintf(&b, "| [`%s`](%s) | `%s %s` | %s |\n", sig, o.Docs, o.Method, o.Path, o.Summary)
+			deprecated := ""
+			if o.Deprecated != "" {
+				deprecated = "Deprecated. "
+			}
+			fmt.Fprintf(&b, "| [`%s`](%s) | `%s %s` | %s%s |\n", sig, o.Docs, o.Method, o.Path, deprecated, o.Summary)
 		}
 	}
 	return b.String()

@@ -28,7 +28,8 @@ only: `NewClient` refuses to start in a browser (`GOOS=js`), where your API key 
 ## Authenticate
 
 Create an API key on [platform.haau3.com](https://platform.haau3.com), then set it as
-`HAAU3_API_KEY` or pass it with `haau3.WithAPIKey`.
+`HAAU3_API_KEY` or pass it with `haau3.WithAPIKey`. To try the API with no key first, call the
+Sandbox (see "The Sandbox" below).
 
 ```go
 client, err := haau3.NewClient() // reads HAAU3_API_KEY
@@ -92,11 +93,11 @@ reconciled, err := client.ReconcileMedications(ctx, records)
 // words support it and a review flag on anything to check. Send the directions, never a patient.
 structured, err := client.StructureDosage(ctx, haau3.StructureDosageRequest(haau3.StructureDosageInput{Text: "Take 1 tablet by mouth twice daily"}))
 
-// Sandbox: the same pharmacy benefit check at /v1/sandbox/fhir/r4, where a test insurer answers
-// with synthetic data for its test members only (https://docs.haau3.com/sandbox/example-health-plan).
-// It takes a test key, so it has a client of its own.
+// The Sandbox: the same calls, answered with fixed answers and a test insurer's synthetic data. A test
+// key sends every call there (see "The Sandbox" below). Its pharmacy benefit check answers its test
+// members only (https://docs.haau3.com/sandbox/example-health-plan).
 sandbox, err := haau3.NewClient(haau3.WithAPIKey(testKey))
-sandboxChecked, err := sandbox.SandboxProcessMessage(ctx, sandboxMessage)
+sandboxChecked, err := sandbox.ProcessMessage(ctx, sandboxMessage)
 ```
 
 Every method, grouped by service, with its request and a link to its page on docs.haau3.com, is in
@@ -106,6 +107,46 @@ Go's style: `fhirMetadata` is `FHIRMetadata`. Query parameters are fields of the
 `serviceTypeCode` is `ServiceTypeCode`. A required one is a plain field; an optional one is a
 pointer or a slice, and nil is not sent. From Go 1.26, `new("NC")` gives a pointer to a value. Each
 field's doc comment gives the API's own name.
+
+## The Sandbox
+
+The Sandbox, `https://sandbox.haau3.com`, is the API's environment to build and test against. It
+serves production's operations at production's paths: each answers its documented example request
+with a fixed answer, and the pharmacy benefit check is answered by a test insurer with synthetic
+data. See [docs.haau3.com](https://docs.haau3.com/authentication) for what it answers and its limits.
+
+Your key's mode picks where the client sends every call. A test key (`haau3_sk_test_…`) goes to
+the Sandbox, and a live key (`haau3_sk_live_…`) to production, so `HAAU3_API_KEY` alone moves an app
+from one to the other. The Sandbox also answers with no key at all. With `HAAU3_API_KEY` unset, name
+it as the environment:
+
+```go
+sandbox, err := haau3.NewClient(haau3.WithEnvironmentSandbox()) // or set HAAU3_ENVIRONMENT=sandbox
+if err != nil {
+	return err
+}
+statement, err := sandbox.FHIRMetadata(ctx, haau3.FHIRMetadataParams{})
+fmt.Println(sandbox.Environment(), sandbox.BaseURL()) // sandbox https://sandbox.haau3.com
+```
+
+A key made before test and live keys goes to production, as a live key does. These are errors of
+`KindNotSent` from `NewClient`, before anything is sent, and the error says where the key came from:
+
+- a test key with `WithEnvironmentProduction`;
+- a live key, or one made before test and live keys, with `WithEnvironmentSandbox` or with the
+  Sandbox's address as the base URL;
+- no key without the Sandbox named;
+- an environment option that a base URL on the other environment's address contradicts;
+- a key with anything before its `haau3_sk_` prefix, such as the quotes an env file kept.
+
+A key given to one call with `WithAPIKey` is sent as it is, to the client's host. `Environment` and
+`BaseURL` on the client say what it resolved.
+
+`SandboxProcessMessage` and `SandboxMetadata`, the Sandbox's first address at
+`/v1/sandbox/fhir/r4`, are deprecated: call `ProcessMessage` and `FHIRMetadata` instead. Until the
+address goes, a client sending to the Sandbox's own host sends them to those operations there.
+`Request` sends a path as it is given, so a first-address path sent on a test key goes to the
+Sandbox's host, which does not serve it.
 
 ## With an AI coding agent
 
@@ -127,8 +168,9 @@ An agent can read the docs directly:
 
 | Option | Default | |
 |---|---|---|
-| `WithAPIKey(key)` | `HAAU3_API_KEY` | Your platform API key. |
-| `WithBaseURL(url)` | `HAAU3_BASE_URL`, then `https://api.haau3.com` | Where the API is. The API key is sent there only. For `NewClient` only. |
+| `WithAPIKey(key)` | `HAAU3_API_KEY` | Your platform API key. A test key calls the Sandbox, a live key production. |
+| `WithEnvironmentSandbox()`, `WithEnvironmentProduction()` | `HAAU3_ENVIRONMENT`, then the key's mode | The environment to call. Name the Sandbox to call it with no key. For `NewClient` only. |
+| `WithBaseURL(url)` | `HAAU3_BASE_URL`, then the environment's address | Where the API is, for a stand-in or a proxy. The API key is sent there only. For `NewClient` only. |
 | `WithTimeout(d)` | `65 * time.Second` | How long one attempt may take, sending and reading its answer. |
 | `WithMaxRetries(n)` | `1` | Retries after a timeout, a network failure, a 429 or a 5xx. |
 | `WithHTTPClient(c)` | a new `*http.Client` | Your own, for a proxy, certificates, connection limits or tracing. For `NewClient` only. |
@@ -209,7 +251,9 @@ if errors.As(err, &e) {
 A 403 is `KindForbidden`, never `KindAuth`: the key was accepted, so there is nothing to rotate. Its
 `Code` says why when the API names it, and its message says the same in words. A test key works only
 in the Sandbox (`test-key-outside-sandbox`: send a live key), and a live key does not work there
-(`live-key-in-sandbox`: send a test key). `phi-agreement-required` means the organization may not
+(`live-key-in-sandbox`: send a test key). The client sends each key to its own environment, so you
+meet these with a base URL of your own, a key given to one call, or by calling the deprecated
+`Sandbox…` methods with a live key. `phi-agreement-required` means the organization may not
 send patient data, and not every resource in the request is labelled as test data: `MarkAsTestData`
 labels made-up data. Without a code, the body says what the organization may not do.
 

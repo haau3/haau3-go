@@ -123,13 +123,14 @@ type answer struct {
 	body       func() []byte
 	attempts   int
 	duration   time.Duration
+	noKey      bool // the request went with no key, which a 401 then says
 }
 
 func (a *answer) context(missing string, expects []string) judgeContext {
 	return judgeContext{
 		requestID: a.header.Get("X-Request-Id"), correlationID: a.header.Get("X-Correlation-Id"),
 		attempts: a.attempts, duration: a.duration, retryAfter: a.header.Get("Retry-After"),
-		missing: missing, expects: expects, statusText: a.statusText,
+		missing: missing, expects: expects, statusText: a.statusText, noKey: a.noKey,
 	}
 }
 
@@ -164,7 +165,9 @@ func (c *Client) send(ctx context.Context, method, url string, content []byte, s
 	if speaksFHIR {
 		header.Set("Accept", fhirJSON)
 	}
-	header.Set("Authorization", "Bearer "+s.key)
+	if s.key != "" {
+		header.Set("Authorization", "Bearer "+s.key)
+	}
 	header.Set("User-Agent", c.userAgent)
 	if content != nil {
 		header.Set("Content-Type", "application/json")
@@ -195,7 +198,7 @@ func (c *Client) send(ctx context.Context, method, url string, content []byte, s
 		var wait time.Duration
 		var again bool
 		if err == nil {
-			a.attempts, a.duration = attempt, time.Since(started)
+			a.attempts, a.duration, a.noKey = attempt, time.Since(started), s.key == ""
 			if wait, again = waitAfterAnswer(attempt, s.maxRetries, a.status, a.header.Get("Retry-After")); !again {
 				return a, nil
 			}
@@ -265,7 +268,7 @@ func answerOf(name string, expects []string, a *answer) ([]byte, judgeContext, *
 func call[R any](ctx context.Context, c *Client, op *operation, pathValues []string, q query, queryErr error,
 	body any, decode func([]byte) (R, error), opts []Option) (R, error) {
 	var zero R
-	name := op.label()
+	name := c.label(op)
 	s, err := c.settingsFor(name, opts, op.headers...)
 	if err != nil {
 		return zero, err
@@ -300,11 +303,11 @@ func what(expects []string, data []byte) string {
 
 // prepare is an operation's URL and body, or the error of KindNotSent that refuses it.
 func (c *Client) prepare(op *operation, pathValues []string, q query, queryErr error, body any) (string, []byte, error) {
-	name := op.label()
+	name := c.label(op)
 	if queryErr != nil {
 		return "", nil, notSent(fmt.Sprintf("%s was not sent: %v.", name, queryErr))
 	}
-	path, err := fillPath(op.path, pathValues)
+	path, err := fillPath(c.sentPath(op), pathValues)
 	if err != nil {
 		return "", nil, notSent(fmt.Sprintf("%s was not sent: %v.", name, err))
 	}

@@ -271,3 +271,53 @@ func TestAParameterInACookieStillStopsTheGenerator(t *testing.T) {
 		t.Errorf("got %v", err)
 	}
 }
+
+// A deprecated operation's words: the passage from "Deprecated:", each operationId in it written as
+// its Go method; anything else stops the generator.
+func TestADeprecatedOperationsWordsNameItsReplacementAsAGoMethod(t *testing.T) {
+	methods := map[string]string{"oldThing": "OldThing", "otherOldThing": "OtherOldThing", "fhirMetadata": "FHIRMetadata"}
+	deprecated := map[string]bool{"oldThing": true, "otherOldThing": true}
+	if description, words, err := deprecation("oldThing", false, "Does a thing.", methods, deprecated); description != "Does a thing." || words != "" || err != nil {
+		t.Errorf("deprecated: false: %q %q %v", description, words, err)
+	}
+	description, words, err := deprecation("oldThing", true, "Does a thing. Deprecated: call `fhirMetadata`\ninstead, at `https://example.test`.", methods, deprecated)
+	if err != nil || description != "Does a thing." || words != "Call `FHIRMetadata` instead, at `https://example.test`." {
+		t.Errorf("%q %q %v", description, words, err)
+	}
+	for _, tc := range []struct {
+		mark        any
+		description string
+		err         string
+	}{
+		{"yes", "Deprecated: call `fhirMetadata`.", "oldThing carries deprecated: yes, where the spec defines only true or false"},
+		{nil, "Deprecated: call `fhirMetadata`.", "where the spec defines only true or false"},
+		{true, "Does a thing.", "needs exactly one passage"},
+		{true, "Deprecated: a. Deprecated: `fhirMetadata`.", "needs exactly one passage"},
+		{true, "Deprecated: call `somethingElse`.", "that is not deprecated"},
+		{true, "Deprecated: call `oldThing`.", "that is not deprecated"},
+		{true, "Deprecated: call `otherOldThing`.", "that is not deprecated"},
+	} {
+		if _, _, err := deprecation("oldThing", tc.mark, tc.description, methods, deprecated); err == nil || !strings.Contains(err.Error(), tc.err) {
+			t.Errorf("%v %q: got %v", tc.mark, tc.description, err)
+		}
+	}
+}
+
+// The pinned spec's two deprecated operations end their doc comments with one Deprecated paragraph,
+// and their descriptions no longer carry the passage.
+func TestEachDeprecatedMethodHasOneDeprecatedParagraph(t *testing.T) {
+	data, err := os.ReadFile("../../../operations_gen.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(data)
+	if got := strings.Count(source, "Deprecated:"); got != 2 {
+		t.Errorf("operations_gen.go says Deprecated: %d times, not 2", got)
+	}
+	for _, method := range []string{"SandboxMetadata", "SandboxProcessMessage"} {
+		at := strings.Index(source, "func (c *Client) "+method+"(")
+		if at < 0 || !strings.Contains(source[max(0, at-400):at], "// Deprecated: Call `") {
+			t.Errorf("%s has no Deprecated paragraph just above it", method)
+		}
+	}
+}

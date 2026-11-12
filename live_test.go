@@ -13,9 +13,53 @@ import (
 	"github.com/haau3/haau3-go/fhir"
 )
 
+// The Sandbox, on a test key or with no key at all. Runs only with HAAU3_LIVE_TEST=1, with a test
+// key in HAAU3_API_KEY or none. With no key the Sandbox allows a few requests an hour from one
+// address, so these are three calls.
+func TestLiveSandbox(t *testing.T) {
+	key := os.Getenv("HAAU3_API_KEY")
+	if os.Getenv("HAAU3_LIVE_TEST") != "1" || (key != "" && keyMode(key) != "test") {
+		t.Skip("set HAAU3_LIVE_TEST=1, with a test key in HAAU3_API_KEY or none, to call the Sandbox")
+	}
+	var opts []Option
+	if key == "" {
+		opts = append(opts, WithEnvironmentSandbox())
+	}
+	client, err := NewClient(opts...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if client.Environment() != EnvironmentSandbox || client.BaseURL() != "https://sandbox.haau3.com" {
+		t.Fatalf("the client calls %s at %s", client.Environment(), client.BaseURL())
+	}
+	ctx := context.Background()
+	statement, err := client.FHIRMetadata(ctx, FHIRMetadataParams{})
+	if err != nil {
+		t.Fatalf("metadata: %v", err)
+	}
+	if text, _ := json.Marshal(statement); !strings.Contains(string(text), `"url":"https://sandbox.haau3.com/v1/fhir/r4"`) {
+		t.Fatalf("metadata is not the Sandbox's own: %s", text)
+	}
+	if _, err := client.SandboxMetadata(ctx); err != nil {
+		t.Fatalf("the first address's metadata, on the Sandbox's own host: %v", err)
+	}
+	i := slices.IndexFunc(specExamples, func(ex specExample) bool { return ex.id == "processMessage" })
+	message := new(fhir.Bundle)
+	if err := json.Unmarshal([]byte(specExamples[i].body), message); err != nil {
+		t.Fatal(err)
+	}
+	checked, err := client.ProcessMessage(ctx, message)
+	if err != nil {
+		t.Fatalf("the pharmacy benefit check: %v", err)
+	}
+	if text, _ := json.Marshal(checked); !strings.Contains(string(text), `"type":"message"`) {
+		t.Fatalf("the pharmacy benefit check answered %s", text)
+	}
+}
+
 // The production API, on a real key. Runs only with HAAU3_LIVE_TEST=1 and a key in HAAU3_API_KEY.
-// The calls are the API's services outside the Sandbox, so they skip on a test key
-// (haau3_sk_test_), whose calls TestEachSampleRunsAsWritten makes.
+// The calls are production's, so they skip on a test key (haau3_sk_test_), which sends every call to
+// the Sandbox: TestLiveSandbox calls it.
 func TestLive(t *testing.T) {
 	if os.Getenv("HAAU3_LIVE_TEST") != "1" || os.Getenv("HAAU3_API_KEY") == "" {
 		t.Skip("set HAAU3_LIVE_TEST=1 and HAAU3_API_KEY to call the production API")

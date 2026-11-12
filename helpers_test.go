@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"slices"
 	"strings"
@@ -19,9 +20,24 @@ import (
 )
 
 const (
-	testKey   = "haau3_sk_test_key_that_must_never_be_printed"
-	requestID = "6b1f3c2e-4d5a-4e6f-8a9b-0c1d2e3f4a5b"
+	// markerKey is a live key, which goes to production: the planted marker every test checks is
+	// never printed.
+	markerKey = "haau3_sk_live_key_that_must_never_be_printed"
+	// markerTestKey is a test key, which goes to the Sandbox: the same marker in the other mode.
+	markerTestKey = "haau3_sk_test_key_that_must_never_be_printed"
+	requestID     = "6b1f3c2e-4d5a-4e6f-8a9b-0c1d2e3f4a5b"
 )
+
+// TestMain runs the suite with no HAAU3_ENVIRONMENT or HAAU3_BASE_URL from the shell, either of
+// which would change which host every client calls; a test that needs one sets it.
+func TestMain(m *testing.M) {
+	for _, name := range []string{"HAAU3_ENVIRONMENT", "HAAU3_BASE_URL"} {
+		if err := os.Unsetenv(name); err != nil {
+			panic(err)
+		}
+	}
+	os.Exit(m.Run())
+}
 
 // reply is an answer as the API sends one: JSON, with a request id.
 type reply struct {
@@ -110,7 +126,7 @@ func (r *recorder) lastBody() []byte {
 func testClient(t *testing.T, rt http.RoundTripper, opts ...Option) *Client {
 	t.Helper()
 	noWaits(t)
-	c, err := NewClient(append([]Option{WithAPIKey(testKey), WithHTTPClient(&http.Client{Transport: rt})}, opts...)...)
+	c, err := NewClient(append([]Option{WithAPIKey(markerKey), WithHTTPClient(&http.Client{Transport: rt})}, opts...)...)
 	if err != nil {
 		t.Fatal(err)
 	}

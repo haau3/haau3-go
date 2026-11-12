@@ -136,7 +136,7 @@ func TestWhatTheHeaderCannotCarryIsRefusedByNewClient(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			rec := record(fhirReply(200, plan))
-			_, err := NewClient(WithAPIKey(testKey), WithHTTPClient(&http.Client{Transport: rec}), WithAppInfo(tc.info))
+			_, err := NewClient(WithAPIKey(markerKey), WithHTTPClient(&http.Client{Transport: rec}), WithAppInfo(tc.info))
 			if e := asError(t, err); e.Kind != KindNotSent || !regexp.MustCompile(tc.message).MatchString(e.Error()) {
 				t.Errorf("%v", e)
 			}
