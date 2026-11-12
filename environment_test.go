@@ -255,27 +255,21 @@ func TestAnExplicitBaseURLKeepsTheEnvironmentsRulesForTheKey(t *testing.T) {
 	}
 }
 
-func TestACallsKeyOfTheOtherModeIsRefusedBeforeSending(t *testing.T) {
+// A call's key never changes the host, and is sent as given: the API's own 403 names a key of the
+// wrong mode. So a live-key client still sends the first address's operation with a call's test key,
+// as it did before the key's mode picked the host.
+func TestACallsKeyIsSentAsGivenToTheClientsHost(t *testing.T) {
 	clearEnvironment(t)
-	rec := record(fhirReply(200, map[string]any{"resourceType": "CapabilityStatement"}))
+	rec := record(fhirReply(200, map[string]any{"resourceType": "Bundle", "type": "message"}))
 	production := onRecorder(t, rec, WithAPIKey(markerKey))
-	_, err := production.FHIRMetadata(context.Background(), FHIRMetadataParams{}, WithAPIKey(markerTestKey))
-	if err == nil || !errors.Is(err, ErrNotSent) || !strings.Contains(err.Error(), "GET /v1/fhir/r4/metadata was not sent: the key in WithAPIKey is a test key") {
-		t.Errorf("%v", err)
-	}
-	sandbox := onRecorder(t, rec, WithEnvironmentSandbox())
-	if _, err := sandbox.FHIRMetadata(context.Background(), FHIRMetadataParams{}, WithAPIKey(markerKey)); !errors.Is(err, ErrNotSent) {
-		t.Errorf("%v", err)
-	}
-	if rec.count() != 0 {
-		t.Errorf("%d requests were sent", rec.count())
-	}
-	// The control: a call's key of the client's own mode is sent, to the client's host.
-	if _, err := sandbox.FHIRMetadata(context.Background(), FHIRMetadataParams{}, WithAPIKey(markerTestKey)); err != nil {
+	if _, err := production.SandboxProcessMessage(context.Background(), &fhir.Bundle{}, WithAPIKey(markerTestKey)); err != nil {
 		t.Fatal(err)
 	}
-	if origin(rec.last().URL) != sandboxHost || rec.last().Header.Get("Authorization") != "Bearer "+markerTestKey {
-		t.Errorf("sent to %s", origin(rec.last().URL))
+	if got := rec.last().URL.String(); got != productionHost+"/v1/sandbox/fhir/r4/$process-message" {
+		t.Errorf("sent to %s", got)
+	}
+	if rec.last().Header.Get("Authorization") != "Bearer "+markerTestKey {
+		t.Error("the call's key was not the one sent")
 	}
 }
 
@@ -347,5 +341,105 @@ func TestAClientWithNoKeyPrintsWhereItSendsAndNoKey(t *testing.T) {
 		if got := fmt.Sprintf(verb, c); got != "haau3.Client("+sandboxHost+")" {
 			t.Errorf("%s: %s", verb, got)
 		}
+	}
+}
+
+func TestAClientWithNoKeySaysARequestAndThatNoKeyWasSent(t *testing.T) {
+	clearEnvironment(t)
+	rec := record(fhirReply(401, map[string]any{"resourceType": "OperationOutcome", "issue": []any{}}))
+	c := onRecorder(t, rec, WithEnvironmentSandbox())
+	_, err := c.FHIRMetadata(context.Background(), FHIRMetadataParams{})
+	if err == nil || err.Error() != "GET /v1/fhir/r4/metadata was refused: it was sent with no API key (401)." {
+		t.Errorf("%v", err)
+	}
+	_, err = c.Request(context.Background(), RawRequest{Method: http.MethodGet, Path: productionHost + "/v1/fhir/r4/metadata"})
+	if err == nil || !strings.Contains(err.Error(), "refusing to send a request to "+productionHost) {
+		t.Errorf("%v", err)
+	}
+}
+
+func TestAKeyIsTrimmedAndAKeyWithAnythingBeforeItsPrefixIsRefused(t *testing.T) {
+	clearEnvironment(t)
+	rec := record(fhirReply(200, map[string]any{"resourceType": "CapabilityStatement"}))
+	t.Setenv("HAAU3_API_KEY", "  "+markerTestKey+"\n")
+	c := onRecorder(t, rec)
+	if _, err := c.FHIRMetadata(context.Background(), FHIRMetadataParams{}); err != nil {
+		t.Fatal(err)
+	}
+	if c.BaseURL() != sandboxHost || rec.last().Header.Get("Authorization") != "Bearer "+markerTestKey {
+		t.Errorf("sent to %s", c.BaseURL())
+	}
+	want := `The key in HAAU3_API_KEY has something before its haau3_sk_ prefix, such as quotes or "Bearer ". Set the key alone.`
+	for _, held := range []string{`"` + markerTestKey + `"`, "'" + markerKey + "'", "Bearer " + markerTestKey} {
+		t.Setenv("HAAU3_API_KEY", held)
+		if e := refusedBy(t); e.Error() != want {
+			t.Errorf("%q", e.Error())
+		}
+	}
+	if e := refusedBy(t, WithAPIKey(`"`+markerKey+`"`)); !strings.HasPrefix(e.Error(), "The key in WithAPIKey has something before") {
+		t.Errorf("%q", e.Error())
+	}
+}
+
+func TestHAAU3EnvironmentIsReadTrimmedInAnyCaseAndOnlyWithNoOption(t *testing.T) {
+	clearEnvironment(t)
+	for _, written := range []string{"Sandbox", " sandbox ", "SANDBOX\n"} {
+		t.Setenv("HAAU3_ENVIRONMENT", written)
+		if c, err := NewClient(); err != nil || c.Environment() != EnvironmentSandbox {
+			t.Errorf("%q: %v %v", written, c, err)
+		}
+	}
+	t.Setenv("HAAU3_ENVIRONMENT", "staging")
+	if c, err := NewClient(WithAPIKey(markerKey), WithEnvironmentProduction()); err != nil || c.Environment() != EnvironmentProduction {
+		t.Errorf("a stray HAAU3_ENVIRONMENT stopped a client that names one: %v", err)
+	}
+}
+
+func TestABaseURLOnOneEnvironmentsAddressMustAgreeWithTheNamedEnvironment(t *testing.T) {
+	clearEnvironment(t)
+	if e := refusedBy(t, WithEnvironmentSandbox(), WithBaseURL(productionHost)); e.Error() != "WithEnvironmentSandbox names the Sandbox, and WithBaseURL is production's address, https://api.haau3.com. Name one environment, or a base URL that is neither's." {
+		t.Errorf("%q", e.Error())
+	}
+	t.Setenv("HAAU3_BASE_URL", sandboxHost)
+	if e := refusedBy(t, WithAPIKey(markerKey), WithEnvironmentProduction()); e.Error() != "WithEnvironmentProduction names production, and HAAU3_BASE_URL is the Sandbox's address, https://sandbox.haau3.com. Name one environment, or a base URL that is neither's." {
+		t.Errorf("%q", e.Error())
+	}
+}
+
+func TestTheSandboxsAddressTakesTestKeysOnlyByItsOrigin(t *testing.T) {
+	clearEnvironment(t)
+	for _, base := range []string{sandboxHost, "https://SANDBOX.haau3.com", "https://sandbox.haau3.com:443"} {
+		if e := refusedBy(t, WithAPIKey(markerKey), WithBaseURL(base)); e.Error() != "The key in WithAPIKey is a live key (haau3_sk_live_…), and WithBaseURL is the Sandbox's address, https://sandbox.haau3.com, which takes test keys only. Use a test key there." {
+			t.Errorf("%s: %q", base, e.Error())
+		}
+		if e := refusedBy(t, WithAPIKey(olderMarkerKey), WithBaseURL(base)); !strings.HasPrefix(e.Error(), "The key in WithAPIKey was made before test and live keys, and WithBaseURL is the Sandbox's address") {
+			t.Errorf("%s: %q", base, e.Error())
+		}
+		rec := record(fhirReply(200, map[string]any{"resourceType": "Bundle", "type": "message"}))
+		c := onRecorder(t, rec, WithAPIKey(markerTestKey), WithBaseURL(base))
+		if c.Environment() != EnvironmentSandbox {
+			t.Errorf("%s: %s", base, c.Environment())
+		}
+		if _, err := c.SandboxProcessMessage(context.Background(), &fhir.Bundle{}); err != nil {
+			t.Fatal(err)
+		}
+		if rec.last().URL.Path != "/v1/fhir/r4/$process-message" {
+			t.Errorf("%s: the deprecated method went to %s", base, rec.last().URL.Path)
+		}
+	}
+}
+
+func TestProductionsAddressStillTakesATestKeyAtTheFirstAddress(t *testing.T) {
+	clearEnvironment(t)
+	rec := record(fhirReply(200, map[string]any{"resourceType": "Bundle", "type": "message"}))
+	c := onRecorder(t, rec, WithAPIKey(markerTestKey), WithBaseURL(productionHost))
+	if c.Environment() != EnvironmentProduction {
+		t.Errorf("%s", c.Environment())
+	}
+	if _, err := c.SandboxProcessMessage(context.Background(), &fhir.Bundle{}); err != nil {
+		t.Fatal(err)
+	}
+	if got := rec.last().URL.String(); got != productionHost+"/v1/sandbox/fhir/r4/$process-message" {
+		t.Errorf("sent to %s", got)
 	}
 }

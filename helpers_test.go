@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"slices"
 	"strings"
@@ -26,6 +27,17 @@ const (
 	markerTestKey = "haau3_sk_test_key_that_must_never_be_printed"
 	requestID     = "6b1f3c2e-4d5a-4e6f-8a9b-0c1d2e3f4a5b"
 )
+
+// TestMain runs the suite with no HAAU3_ENVIRONMENT or HAAU3_BASE_URL from the shell, either of
+// which would change which host every client calls; a test that needs one sets it.
+func TestMain(m *testing.M) {
+	for _, name := range []string{"HAAU3_ENVIRONMENT", "HAAU3_BASE_URL"} {
+		if err := os.Unsetenv(name); err != nil {
+			panic(err)
+		}
+	}
+	os.Exit(m.Run())
+}
 
 // reply is an answer as the API sends one: JSON, with a request id.
 type reply struct {

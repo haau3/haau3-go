@@ -22,17 +22,17 @@ import (
 // written: a program of its own, with HAAU3_BASE_URL pointing at a stand-in API that answers only
 // the operation's example request, exactly as the spec writes it, and refuses anything else.
 //
-// Against the production API too, on a real key, when asked, as TestLive is:
+// Against the API too, on a real key, when asked, as TestLive is:
 //
 //	HAAU3_LIVE_TEST=1 HAAU3_API_KEY=haau3_sk_... go test -run TestEachSampleRunsAsWritten
 //
-// There each sample runs with no address set, as a customer runs it, one at a time. What it must
-// do is set by the key's mode, read from its prefix: a live key (haau3_sk_live_) is answered
-// everywhere but the Sandbox and refused there, a test key (haau3_sk_test_) the reverse, each
-// refusal a KindForbidden error whose message gives its reason. The live key comes from an
-// organization with no agreement on file, which Pharmacy Benefits refuses, since it is not yet
-// open. A key with neither prefix works on both bases, and its run leaves Pharmacy Benefits out.
-// CI sets neither variable.
+// There each sample runs with no address set, as a customer runs it, one at a time, against the
+// host the key's mode picks. A live key (haau3_sk_live_) calls production, which answers everything
+// but the Sandbox's first address and refuses that, a KindForbidden error whose message gives its
+// reason. A test key (haau3_sk_test_) calls the Sandbox, where every sample's example gets its fixed
+// answer. The live key comes from an organization with no agreement on file, which Pharmacy Benefits
+// refuses, since it is not yet open. A key with neither prefix calls production, works on both of
+// its bases, and its run leaves Pharmacy Benefits out. CI sets neither variable.
 
 type sampleOverlay struct {
 	Overlay string `json:"overlay"`
