@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.9](https://github.com/haau3/haau3-go/compare/v0.2.8...v0.2.9) (2026-11-12)
+
+
+### Features
+
+* the API's spec at 1.0.0-preview.32 ([#56](https://github.com/haau3/haau3-go/issues/56)) ([37f88ab](https://github.com/haau3/haau3-go/commit/37f88abd68479b8b6a3862fe41be74973ce0b6f8))
+* WithAppInfo adds your app's name and version to the User-Agent ([#54](https://github.com/haau3/haau3-go/issues/54)) ([b72f3a4](https://github.com/haau3/haau3-go/commit/b72f3a4920a2c936538854b7793effe26d8f5bf8))
+
 ## [0.2.8](https://github.com/haau3/haau3-go/compare/v0.2.7...v0.2.8) (2026-11-10)
 
 
