@@ -306,6 +306,35 @@ func TestA403HasNoCodeWhenTheAPINamesNone(t *testing.T) {
 	}
 }
 
+// A refusal's code: the Sandbox's not-the-example, from the FHIR base and from a problem.
+func TestARefusalCarriesTheSandboxsNotTheExample(t *testing.T) {
+	e := asError(t, readPlan(t, fhirReply(400, coded("not-the-example", "https://haau3.com/fhir/CodeSystem/sandbox-error"))))
+	if e.Kind != KindRefused || e.Code != "not-the-example" {
+		t.Errorf("%#v", e)
+	}
+	if got, _ := json.Marshal(e); !strings.Contains(string(got), `"code":"not-the-example"`) {
+		t.Errorf("%s", got)
+	}
+	problem := map[string]any{
+		"type": "https://docs.haau3.com/errors#invalid-request", "title": "Invalid request", "status": 400,
+		"detail": "d", "instance": "urn:uuid:x", "code": "not-the-example",
+	}
+	_, err := testClient(t, record(plainReply(400, problem))).SearchSlots(context.Background(), SearchSlotsParams{State: new("MA")})
+	if e := asError(t, err); e.Kind != KindRefused || e.Code != "not-the-example" {
+		t.Errorf("%#v", e)
+	}
+}
+
+// Negative control: no code, and a code from a system that is not haau3's, are no code.
+func TestARefusalHasNoCodeWhenTheAPINamesNone(t *testing.T) {
+	for _, body := range []any{outcome, coded("not-the-example", "http://example.org/other")} {
+		e := asError(t, readPlan(t, fhirReply(400, body)))
+		if e.Kind != KindRefused || e.Code != "" {
+			t.Errorf("%#v", e)
+		}
+	}
+}
+
 // Every error the API answered carries its status's text.
 func TestEachErrorTheAPIAnsweredCarriesItsStatusText(t *testing.T) {
 	cases := []struct {

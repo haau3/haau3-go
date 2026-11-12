@@ -235,6 +235,7 @@ if errors.As(err, &e) {
 	switch e.Kind {
 	case haau3.KindRefused:
 		fmt.Println(e.Status)    // 400, 404, 410 and so on
+		fmt.Println(e.Code)      // why, when the API names it: "not-the-example" from the Sandbox
 		fmt.Println(e.Outcome()) // the OperationOutcome; Scheduling's errors carry e.Problem()
 	case haau3.KindNoAnswer:
 		fmt.Println(e.Reason)     // timeout, network, rate-limited, unavailable, server-error or unreadable
@@ -242,7 +243,7 @@ if errors.As(err, &e) {
 		fmt.Println(e.Detail)     // for a timeout or a network failure: what failed, such as "dial: connection refused"
 	case haau3.KindForbidden:
 		// 403: the key was accepted, and it may not make this request
-		fmt.Println(e.Code) // why, when the API names it: "test-key-outside-sandbox", "live-key-in-sandbox", "phi-agreement-required"
+		fmt.Println(e.Code) // why, when the API names it: "test-key-outside-sandbox", "live-key-in-sandbox", "phi-agreement-required", "not-open-to-customers"
 	case haau3.KindAuth:
 		// 401: the key was missing, unknown or revoked
 	case haau3.KindNotSent:
@@ -276,7 +277,13 @@ in the Sandbox (`test-key-outside-sandbox`: send a live key), and a live key doe
 meet these with a base URL of your own, a key given to one call, or by calling the deprecated
 `Sandbox…` methods with a live key. `phi-agreement-required` means the organization may not
 send patient data, and not every resource in the request is labelled as test data: `MarkAsTestData`
-labels made-up data. Without a code, the body says what the organization may not do.
+labels made-up data. `not-open-to-customers` means the operation is not yet open to customers: an
+expected answer, not a fault in the request. Without a code, the body says what the organization may
+not do.
+
+An error of `KindRefused` carries the API's reason in its `Code` when it names one: `not-the-example`
+from the Sandbox, which answers each operation's documented example only and refuses any other
+request.
 
 `errors.Is(err, haau3.ErrNoAnswer)` checks the kind alone, and the same for `ErrAuth`,
 `ErrForbidden`, `ErrRefused` and `ErrNotSent`. A no-answer error unwraps to the network error behind it, so
@@ -493,6 +500,30 @@ longer list as several batches. Every operation on the FHIR base can go in a bat
 
 To send a batch `Bundle` you built yourself, `FHIRBatch` takes it and returns the `batch-response`
 as it is.
+
+## Any operation by its path
+
+`Get` and `Post` call an operation by its path: one this version of the module has no method for
+yet, or one a tool found in the spec. Each takes the path as the spec writes it and a `CallParams`:
+a value for each `{name}` in `PathParams`, the `Query`, the `Body` (for `Post`) and the FHIR types
+the answer may be in `Expects`. They decode the answer into the value you point at, and return the
+same errors as every operation's own method; `WithResponseInfo` gives the request id and timing too:
+
+```go
+var practitioner fhir.Practitioner
+var info haau3.ResponseInfo
+err := client.Get(ctx, "/v1/fhir/r4/Practitioner/{id}", haau3.CallParams{
+	PathParams: map[string]string{"id": "Practitioner-1093209884"},
+	Expects:    []string{"Practitioner"},
+}, &practitioner, haau3.WithResponseInfo(&info))
+if err != nil {
+	return err
+}
+fmt.Println(info.RequestID)
+```
+
+Each value is encoded into the path, and an error's message names the path as you wrote it, never a
+value. A `{name}` with no value, or a value with no `{name}`, is refused before anything is sent.
 
 ## Any request
 

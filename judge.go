@@ -169,6 +169,10 @@ type judgeContext struct {
 // details.coding.
 const apiErrorSystem = "https://haau3.com/fhir/CodeSystem/api-error"
 
+// sandboxErrorSystem is the Sandbox's own code system: "not-the-example", for a request that is not
+// an operation's documented example.
+const sandboxErrorSystem = "https://haau3.com/fhir/CodeSystem/sandbox-error"
+
 // forbiddenReasons is why the API refused a request with a 403, in the words of each message: the
 // reasons the API names by a code of its own. Any other 403, or one without a code, keeps
 // forbiddenGeneral.
@@ -176,6 +180,7 @@ var forbiddenReasons = map[string]string{
 	"test-key-outside-sandbox": "this is a test key, which works only in the Sandbox",
 	"live-key-in-sandbox":      "this is a live key, which does not work in the Sandbox",
 	"phi-agreement-required":   "its organization may not send patient data, and not every resource in this request is labelled as test data",
+	"not-open-to-customers":    "the operation is not yet open to customers",
 }
 
 const forbiddenGeneral = "the API key was accepted, and its organization may not make this request"
@@ -184,6 +189,17 @@ const forbiddenGeneral = "the API key was accepted, and its organization may not
 // api-error coding of an OperationOutcome's first issue that has one, or a problem's code. A
 // code, never words, so it is safe to log.
 func apiErrorCode(outcome *fhir.OperationOutcome, problem *Problem) string {
+	return codeIn(outcome, problem, apiErrorSystem)
+}
+
+// refusalCode is the API's own code for why it refused a request with any other 4xx, when it names
+// one: an api-error or sandbox-error coding of an OperationOutcome's first issue that has one, or a
+// problem's code. A code, never words, so it is safe to log.
+func refusalCode(outcome *fhir.OperationOutcome, problem *Problem) string {
+	return codeIn(outcome, problem, apiErrorSystem, sandboxErrorSystem)
+}
+
+func codeIn(outcome *fhir.OperationOutcome, problem *Problem, systems ...string) string {
 	if problem != nil {
 		if problem.Code != nil {
 			return *problem.Code
@@ -198,7 +214,7 @@ func apiErrorCode(outcome *fhir.OperationOutcome, problem *Problem) string {
 			continue
 		}
 		for _, coding := range issue.Details.Coding {
-			if coding.System != nil && *coding.System == apiErrorSystem && coding.Code != nil {
+			if coding.System != nil && slices.Contains(systems, *coding.System) && coding.Code != nil {
 				return *coding.Code
 			}
 		}
@@ -294,7 +310,9 @@ func judge(name string, status int, body []byte, c judgeContext) *Error {
 		e.Code = code
 		return e
 	}
-	return answered(KindRefused, fmt.Sprintf("%s was refused (%d).", name, status))
+	e := answered(KindRefused, fmt.Sprintf("%s was refused (%d).", name, status))
+	e.Code = refusalCode(readErrorBody(body))
+	return e
 }
 
 // unreadable is an answer of the right type that does not read as it: a list where FHIR R4 has an
