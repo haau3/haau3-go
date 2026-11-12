@@ -271,3 +271,33 @@ func TestAParameterInACookieStillStopsTheGenerator(t *testing.T) {
 		t.Errorf("got %v", err)
 	}
 }
+
+// A deprecated operation's words: the passage from "Deprecated:", each operationId in it written as
+// its Go method; anything else stops the generator.
+func TestADeprecatedOperationsWordsNameItsReplacementAsAGoMethod(t *testing.T) {
+	methods := map[string]string{"oldThing": "OldThing", "fhirMetadata": "FHIRMetadata"}
+	if words, err := deprecation("oldThing", nil, "Does a thing.", methods); words != "" || err != nil {
+		t.Errorf("not deprecated: %q %v", words, err)
+	}
+	if words, err := deprecation("oldThing", false, "Does a thing.", methods); words != "" || err != nil {
+		t.Errorf("deprecated: false: %q %v", words, err)
+	}
+	words, err := deprecation("oldThing", true, "Does a thing. Deprecated: call `fhirMetadata`\ninstead, at `https://example.test`.", methods)
+	if err != nil || words != "Call `FHIRMetadata` instead, at `https://example.test`." {
+		t.Errorf("%q %v", words, err)
+	}
+	for _, tc := range []struct {
+		mark        any
+		description string
+		err         string
+	}{
+		{"yes", "Deprecated: call `fhirMetadata`.", "oldThing carries deprecated: yes, where the spec defines only true"},
+		{true, "Does a thing.", "needs exactly one passage"},
+		{true, "Deprecated: a. Deprecated: `fhirMetadata`.", "needs exactly one passage"},
+		{true, "Deprecated: call `somethingElse`.", "names no operation of the spec"},
+	} {
+		if _, err := deprecation("oldThing", tc.mark, tc.description, methods); err == nil || !strings.Contains(err.Error(), tc.err) {
+			t.Errorf("%v %q: got %v", tc.mark, tc.description, err)
+		}
+	}
+}

@@ -296,7 +296,7 @@ func standIn(t *testing.T, ops []specOperation) *httptest.Server {
 		if len(data) > 0 {
 			_ = json.Unmarshal(data, &sent)
 		}
-		if r.Header.Get("Authorization") != "Bearer "+testKey {
+		if r.Header.Get("Authorization") != "Bearer "+markerKey {
 			refuse(w, "no key")
 			return
 		}
@@ -405,7 +405,7 @@ func TestEachSampleRunsAsWritten(t *testing.T) {
 		cmd.Dir = dir
 		cmd.Env = env
 		if len(env) == 0 {
-			cmd.Env = []string{"HAAU3_API_KEY=" + testKey, "HAAU3_BASE_URL=" + server.URL}
+			cmd.Env = []string{"HAAU3_API_KEY=" + markerKey, "HAAU3_BASE_URL=" + server.URL}
 		}
 		out, err := cmd.CombinedOutput()
 		return strings.TrimRight(string(out), "\n"), err
@@ -492,8 +492,10 @@ func keyMode(key string) string {
 func onThisKey(mode string, o specOperation) (answers bool, refused string, ok bool) {
 	sandbox := strings.HasPrefix(o.path, "/v1/sandbox/")
 	switch {
-	case mode == "test" && !sandbox:
-		return false, "test-key-outside-sandbox", true
+	case mode == "test":
+		// A test key sends every sample to the Sandbox's own host, which answers each example request
+		// with its fixed answer, and the first address's two at the same operations there.
+		return true, "", true
 	case mode == "live" && sandbox:
 		return false, "live-key-in-sandbox", true
 	case o.id == "processMessage":

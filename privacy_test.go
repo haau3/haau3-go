@@ -71,7 +71,7 @@ func assertNeverPrinted(t *testing.T, what string, v any) {
 		if strings.Contains(text, marker) {
 			t.Errorf("%s printed the body through %s: %s", what, how, text)
 		}
-		if strings.Contains(text, testKey) {
+		if strings.Contains(text, markerKey) {
 			t.Errorf("%s printed the key through %s: %s", what, how, text)
 		}
 	}

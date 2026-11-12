@@ -29,7 +29,7 @@ func TestPayerAuthorizationIsSentBesideTheKey(t *testing.T) {
 		t.Fatal(err)
 	}
 	h := rec.last().Header
-	if h.Get("Payer-Authorization") != "Bearer "+payerToken || h.Get("Authorization") != "Bearer "+testKey {
+	if h.Get("Payer-Authorization") != "Bearer "+payerToken || h.Get("Authorization") != "Bearer "+markerKey {
 		t.Errorf("%v", h)
 	}
 }
@@ -128,7 +128,7 @@ func TestPayerAuthorizationIsSentAgainOnARetry(t *testing.T) {
 }
 
 func TestPayerAuthorizationIsForAProcessMessageCallOnly(t *testing.T) {
-	if _, err := NewClient(WithAPIKey(testKey), WithPayerAuthorization("Bearer "+payerToken)); err == nil {
+	if _, err := NewClient(WithAPIKey(markerKey), WithPayerAuthorization("Bearer "+payerToken)); err == nil {
 		t.Fatal("NewClient took it")
 	} else if e := asError(t, err); e.Kind != KindNotSent || !strings.Contains(e.Error(), "WithPayerAuthorization") || strings.Contains(e.Error(), payerToken) {
 		t.Errorf("%v", e)

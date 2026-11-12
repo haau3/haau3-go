@@ -53,7 +53,7 @@ func TestEachOperationSendsItsExampleAndReturnsItsAnswer(t *testing.T) {
 			if got, want := sortedPairs(queryPairs(t, req.URL.RawQuery)), sortedPairs(ex.sent); !slices.Equal(got, want) {
 				t.Errorf("query %v, want %v", got, want)
 			}
-			if got := req.Header.Get("Authorization"); got != "Bearer "+testKey {
+			if got := req.Header.Get("Authorization"); got != "Bearer "+markerKey {
 				t.Errorf("Authorization %q", got)
 			}
 			if got := req.Header.Get("User-Agent"); !strings.HasPrefix(got, "haau3-go/"+Version+" (go 1.") {
@@ -146,7 +146,7 @@ func sentPath(ex specExample) string {
 // The client's methods are exactly the spec's operations and the SDK's own few, so a spec change
 // that adds or removes an operation shows here.
 func TestTheClientSurfaceIsTheSpecsOperations(t *testing.T) {
-	own := []string{"BaseURL", "Batch", "Format", "GoString", "Pages", "Request", "Resources", "String"}
+	own := []string{"BaseURL", "Batch", "Environment", "Format", "GoString", "Pages", "Request", "Resources", "String"}
 	var want []string
 	for _, ex := range specExamples {
 		want = append(want, ex.name)

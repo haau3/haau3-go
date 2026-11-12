@@ -137,7 +137,7 @@ func TestARedirectIsNotFollowedAndIsNotAnAnswer(t *testing.T) {
 	defer server.Close()
 	// Even a client of yours that follows redirects does not, as the SDK sends with it.
 	follows := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return nil }}
-	c, err := NewClient(WithAPIKey(testKey), WithBaseURL(server.URL), WithHTTPClient(follows))
+	c, err := NewClient(WithAPIKey(markerKey), WithBaseURL(server.URL), WithHTTPClient(follows))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,7 +165,7 @@ func TestAnAttemptThatNeverAnswersTimesOut(t *testing.T) {
 	defer server.Close()
 	defer close(release)
 	noWaits(t)
-	c, _ := NewClient(WithAPIKey(testKey), WithBaseURL(server.URL), WithTimeout(50*time.Millisecond))
+	c, _ := NewClient(WithAPIKey(markerKey), WithBaseURL(server.URL), WithTimeout(50*time.Millisecond))
 	started := time.Now()
 	_, err := c.ReadInsurancePlan(context.Background(), "H1")
 	e := asError(t, err)
@@ -195,7 +195,7 @@ func TestAnAnswerThatKeepsDrippingTimesOut(t *testing.T) {
 	}))
 	defer server.Close()
 	noWaits(t)
-	c, _ := NewClient(WithAPIKey(testKey), WithBaseURL(server.URL), WithTimeout(80*time.Millisecond), WithMaxRetries(0))
+	c, _ := NewClient(WithAPIKey(markerKey), WithBaseURL(server.URL), WithTimeout(80*time.Millisecond), WithMaxRetries(0))
 	_, err := c.ReadInsurancePlan(context.Background(), "H1")
 	if e := asError(t, err); e.Reason != ReasonTimeout {
 		t.Errorf("%#v", e)
@@ -210,7 +210,7 @@ func TestARefusedConnectionSaysSoWithoutAnAddress(t *testing.T) {
 	address := listener.Addr().String()
 	_ = listener.Close()
 	noWaits(t)
-	c, _ := NewClient(WithAPIKey(testKey), WithBaseURL("http://"+address), WithMaxRetries(0))
+	c, _ := NewClient(WithAPIKey(markerKey), WithBaseURL("http://"+address), WithMaxRetries(0))
 	_, err = c.ReadInsurancePlan(context.Background(), "H1")
 	e := asError(t, err)
 	if e.Reason != ReasonNetwork || !strings.HasPrefix(e.Detail, "dial: ") || strings.Contains(e.Detail, "127.0.0.1") {
@@ -260,7 +260,7 @@ func TestHeadersSentAndReplaced(t *testing.T) {
 }
 
 func TestDefaults(t *testing.T) {
-	c, err := NewClient(WithAPIKey(testKey))
+	c, err := NewClient(WithAPIKey(markerKey))
 	if err != nil {
 		t.Fatal(err)
 	}

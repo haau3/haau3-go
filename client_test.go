@@ -33,7 +33,7 @@ func TestNoKeyIsRefused(t *testing.T) {
 	t.Setenv("HAAU3_API_KEY", "")
 	for _, opts := range [][]Option{nil, {WithAPIKey("")}} {
 		_, err := NewClient(opts...)
-		if e := asError(t, err); e.Kind != KindNotSent || e.Error() != "No API key: pass haau3.WithAPIKey, or set HAAU3_API_KEY." {
+		if e := asError(t, err); e.Kind != KindNotSent || e.Error() != noKey {
 			t.Errorf("%q", err)
 		}
 	}
@@ -51,7 +51,7 @@ func TestABrowserIsRefused(t *testing.T) {
 	old := goos
 	goos = "js"
 	defer func() { goos = old }()
-	_, err := NewClient(WithAPIKey(testKey))
+	_, err := NewClient(WithAPIKey(markerKey))
 	if e := asError(t, err); e.Kind != KindNotSent || e.Error() != "haau3 runs on a server only: an API key in a browser is public. Call the API from your server." {
 		t.Errorf("%v", err)
 	}
@@ -59,12 +59,12 @@ func TestABrowserIsRefused(t *testing.T) {
 
 func TestABadBaseURLIsRefusedWhenTheClientIsMade(t *testing.T) {
 	for _, bad := range []string{"api.haau3.com", "ftp://api.haau3.com", "https://", "https://api.haau3.com:port", "https://api.haau3.com/?q=1", "::"} {
-		_, err := NewClient(WithAPIKey(testKey), WithBaseURL(bad))
+		_, err := NewClient(WithAPIKey(markerKey), WithBaseURL(bad))
 		if e := asError(t, err); e.Kind != KindNotSent || !strings.HasPrefix(e.Error(), "WithBaseURL takes an http or https URL with a host") {
 			t.Errorf("%s: %v", bad, err)
 		}
 	}
-	c, err := NewClient(WithAPIKey(testKey), WithBaseURL("http://localhost:8080///"))
+	c, err := NewClient(WithAPIKey(markerKey), WithBaseURL("http://localhost:8080///"))
 	if err != nil || c.BaseURL() != "http://localhost:8080" {
 		t.Errorf("%v %v", c, err)
 	}
@@ -73,7 +73,7 @@ func TestABadBaseURLIsRefusedWhenTheClientIsMade(t *testing.T) {
 func TestHAAU3BaseURLIsWhereRequestsGoWithNoWithBaseURL(t *testing.T) {
 	t.Setenv("HAAU3_BASE_URL", "https://stand-in.example.test/")
 	rec := record(fhirReply(200, plan))
-	c, err := NewClient(WithAPIKey(testKey), WithHTTPClient(&http.Client{Transport: rec}))
+	c, err := NewClient(WithAPIKey(markerKey), WithHTTPClient(&http.Client{Transport: rec}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,12 +86,12 @@ func TestHAAU3BaseURLIsWhereRequestsGoWithNoWithBaseURL(t *testing.T) {
 	}
 
 	// WithBaseURL beats it, and an empty one is unset.
-	c, err = NewClient(WithAPIKey(testKey), WithBaseURL("https://other.example.test"))
+	c, err = NewClient(WithAPIKey(markerKey), WithBaseURL("https://other.example.test"))
 	if err != nil || c.BaseURL() != "https://other.example.test" {
 		t.Errorf("%v %v", c, err)
 	}
 	t.Setenv("HAAU3_BASE_URL", "")
-	c, err = NewClient(WithAPIKey(testKey))
+	c, err = NewClient(WithAPIKey(markerKey))
 	if err != nil || c.BaseURL() != "https://api.haau3.com" {
 		t.Errorf("%v %v", c, err)
 	}
@@ -99,12 +99,12 @@ func TestHAAU3BaseURLIsWhereRequestsGoWithNoWithBaseURL(t *testing.T) {
 
 func TestABadHAAU3BaseURLIsRefusedByItsOwnName(t *testing.T) {
 	t.Setenv("HAAU3_BASE_URL", "ftp://stand-in.example.test")
-	_, err := NewClient(WithAPIKey(testKey))
+	_, err := NewClient(WithAPIKey(markerKey))
 	if e := asError(t, err); e.Kind != KindNotSent || !strings.HasPrefix(e.Error(), `HAAU3_BASE_URL takes an http or https URL with a host, such as https://api.haau3.com: "ftp://stand-in.example.test" is not one.`) {
 		t.Errorf("%v", err)
 	}
 	// WithBaseURL beats a bad one too.
-	if _, err := NewClient(WithAPIKey(testKey), WithBaseURL("https://api.haau3.com")); err != nil {
+	if _, err := NewClient(WithAPIKey(markerKey), WithBaseURL("https://api.haau3.com")); err != nil {
 		t.Error(err)
 	}
 }
@@ -112,7 +112,7 @@ func TestABadHAAU3BaseURLIsRefusedByItsOwnName(t *testing.T) {
 func TestTheKeyGoesToHAAU3BaseURLsHostOnly(t *testing.T) {
 	t.Setenv("HAAU3_BASE_URL", "https://stand-in.example.test")
 	rec := record(fhirReply(200, plan))
-	c, err := NewClient(WithAPIKey(testKey), WithHTTPClient(&http.Client{Transport: rec}))
+	c, err := NewClient(WithAPIKey(markerKey), WithHTTPClient(&http.Client{Transport: rec}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,13 +126,13 @@ func TestTheKeyGoesToHAAU3BaseURLsHostOnly(t *testing.T) {
 }
 
 func TestAnOptionInTheWrongPlaceIsRefused(t *testing.T) {
-	if _, err := NewClient(WithAPIKey(testKey), WithCorrelationID("6b1f3c2e-4d5a-4e6f-8a9b-0c1d2e3f4a5b")); err == nil {
+	if _, err := NewClient(WithAPIKey(markerKey), WithCorrelationID("6b1f3c2e-4d5a-4e6f-8a9b-0c1d2e3f4a5b")); err == nil {
 		t.Error("NewClient took WithCorrelationID")
 	}
-	if _, err := NewClient(WithAPIKey(testKey), WithResponseInfo(&ResponseInfo{})); err == nil {
+	if _, err := NewClient(WithAPIKey(markerKey), WithResponseInfo(&ResponseInfo{})); err == nil {
 		t.Error("NewClient took WithResponseInfo")
 	}
-	if _, err := NewClient(WithAPIKey(testKey), WithTimeout(0)); err == nil {
+	if _, err := NewClient(WithAPIKey(markerKey), WithTimeout(0)); err == nil {
 		t.Error("NewClient took a zero timeout")
 	}
 	rec := record(fhirReply(200, plan))
@@ -175,12 +175,12 @@ func TestTheUserAgentNamesTheLanguageAndTheRuntime(t *testing.T) {
 func TestTheKeyIsNeverShown(t *testing.T) {
 	c := testClient(t, record())
 	for _, verb := range []string{"%v", "%+v", "%#v", "%s", "%q", "%x"} {
-		if got := fmt.Sprintf(verb, c); strings.Contains(got, testKey) || got != "haau3.Client(https://api.haau3.com)" {
+		if got := fmt.Sprintf(verb, c); strings.Contains(got, markerKey) || got != "haau3.Client(https://api.haau3.com)" {
 			t.Errorf("%s: %s", verb, got)
 		}
 	}
 	// Even a printer that reads fields itself sees only a function.
-	if got := fmt.Sprintf("%+v", *c); strings.Contains(got, testKey) {
+	if got := fmt.Sprintf("%+v", *c); strings.Contains(got, markerKey) {
 		t.Errorf("%s", got)
 	}
 }
