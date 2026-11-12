@@ -85,6 +85,7 @@ func TestTheREADMEsGoCompiles(t *testing.T) {
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -100,6 +101,7 @@ import (
 
 var (
 	_ = errors.As
+	_ = json.Marshal
 	_ = fmt.Sprint
 	_ = io.EOF
 	_ = slog.Info

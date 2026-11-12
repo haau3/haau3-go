@@ -364,8 +364,51 @@ func TestTheSlotSearchIsTheFirstCall(t *testing.T) {
 	}
 	if !regexp.MustCompile(`(?m)^\t// Open appointment slots, here in [A-Z][\w .'-]*\.$`).MatchString(source) ||
 		!strings.Contains(source, "client.SearchSlots(ctx, haau3.SearchSlotsParams{City: ") ||
+		!strings.Contains(source, emptyGuard) ||
 		!strings.HasSuffix(source, "\tfmt.Println(string(slot))\n}\n") {
 		t.Errorf("the slot search is not the first call:\n%s", source)
+	}
+}
+
+// emptyGuard is the first call's answer to a search that finds nothing.
+const emptyGuard = "\tif len(found.Slots) == 0 {\n\t\tfmt.Println(\"No open slots matched.\")\n\t\treturn\n\t}\n"
+
+// The first call, against a search that finds no slot, says so; the sample before the guard
+// panicked, as the control.
+func TestTheFirstCallSaysSoWhenNoSlotMatches(t *testing.T) {
+	if testing.Short() {
+		t.Skip("builds two programs")
+	}
+	var overlay sampleOverlay
+	readJSON(t, filepath.Join("openapi", "code-samples.json"), &overlay)
+	var source string
+	for _, a := range overlay.Actions {
+		if a.Target == "$.paths['/v1/scheduling/slots'].get" {
+			source = a.Update.Samples[0].Source
+		}
+	}
+	unguarded := strings.Replace(source, emptyGuard, "", 1)
+	if unguarded == source {
+		t.Fatal("the control did not change the first call")
+	}
+	bins := buildSamples(t, map[string]string{"guarded": source, "unguarded": unguarded})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"total":0,"slots":[]}`))
+	}))
+	t.Cleanup(server.Close)
+	run := func(name string) (string, error) {
+		cmd := exec.Command(filepath.Join(bins, name))
+		cmd.Dir = t.TempDir()
+		cmd.Env = []string{"HAAU3_API_KEY=" + markerKey, "HAAU3_BASE_URL=" + server.URL}
+		out, err := cmd.CombinedOutput()
+		return string(out), err
+	}
+	if out, err := run("guarded"); err != nil || out != "No open slots matched.\n" {
+		t.Errorf("the first call printed %q (%v), want that no open slot matched", out, err)
+	}
+	if out, err := run("unguarded"); err == nil || !strings.Contains(out, "index out of range") {
+		t.Errorf("the sample before the guard did not panic on no slot: %v\n%s", err, out)
 	}
 }
 

@@ -31,6 +31,11 @@ Create an API key on [platform.haau3.com](https://platform.haau3.com), then set 
 `HAAU3_API_KEY` or pass it with `haau3.WithAPIKey`. To try the API with no key first, call the
 Sandbox (see "The Sandbox" below).
 
+Or make the key from your project's folder with the
+[haau3 command line](https://github.com/haau3/haau3-cli) (Node 22 or newer): `npx haau3 login`, then
+`npx haau3 keys create`, which writes it to the project's env file and never shows it. Load that
+file before the program starts, such as with `set -a; . ./.env; set +a` in the shell.
+
 ```go
 client, err := haau3.NewClient() // reads HAAU3_API_KEY
 if err != nil {
@@ -44,13 +49,20 @@ goroutines at once.
 ## A first call
 
 ```go
-plan, err := client.ReadInsurancePlan(ctx, "H2406-013-000")
+// Open appointment slots, here in Cambridge.
+found, err := client.SearchSlots(ctx, haau3.SearchSlotsParams{City: new("Cambridge"), State: new("MA"), Limit: new(1)})
 if err != nil {
 	return err
 }
-if plan.Name != nil {
-	fmt.Println(*plan.Name) // "AARP Medicare Advantage from UHC FL-0021 (PPO)"
+if len(found.Slots) == 0 {
+	fmt.Println("No open slots matched.")
+	return nil
 }
+slot, err := json.MarshalIndent(found.Slots[0], "", "  ")
+if err != nil {
+	return err
+}
+fmt.Println(string(slot))
 ```
 
 Every method takes a `context.Context` first, and its deadline or cancellation bounds the whole
@@ -167,6 +179,12 @@ An agent can read the docs directly:
 
 `go doc github.com/haau3/haau3-go` gives the package's own documentation.
 
+The [haau3 command line](https://github.com/haau3/haau3-cli) lets an agent act without ever seeing
+a key. `npx haau3 doctor --json` checks the project's setup, and `npx haau3 test --json` makes one
+call to each service, in the Sandbox when there is no key. `npx haau3 login`, then
+`npx haau3 keys create`, puts a key in the project's env file after a person approves in the
+browser.
+
 ## Options
 
 | Option | Default | |
@@ -269,6 +287,10 @@ The codes are the `Code` constants: `no-api-key`, `api-key-not-alone`, `test-key
 `environment-conflicts-with-base-url`, `invalid-app-info`, `invalid-option`, `call-only-option` and
 `in-browser`. The two the API also answers with keep the API's names. Other errors of `KindNotSent`
 carry no code.
+
+When `HAAU3_API_KEY` has no value but `.env.local` or `.env` in the current folder sets it, the
+`no-api-key` message names that file and says how to load it. The SDK looks there only when it has no
+key from `HAAU3_API_KEY`, opens only a regular file, and never keeps or shows the value.
 
 A 403 is `KindForbidden`, never `KindAuth`: the key was accepted, so there is nothing to rotate. Its
 `Code` says why when the API names it, and its message says the same in words. A test key works only

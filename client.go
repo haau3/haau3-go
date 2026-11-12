@@ -51,11 +51,47 @@ var (
 // the same way.
 const firstAddress = "/v1/sandbox/fhir/r4"
 
-// noKey is what a client with no key says: both ways to give one, where one comes from, and the
-// Sandbox's way to call with none.
+// noKey is what a client with no key says: both ways to give one, where one comes from (the
+// dashboard, or the command line, which writes it to the project's env file), and the Sandbox's way
+// to call with none.
 const noKey = "No API key. Set HAAU3_API_KEY, or pass it as haau3.WithAPIKey. Create a free key at " +
-	"https://platform.haau3.com (see https://docs.haau3.com/authentication). To call the Sandbox with no " +
+	"https://platform.haau3.com, or run npx haau3 login, then npx haau3 keys create, which writes one to " +
+	"this project's env file (see https://docs.haau3.com/authentication). To call the Sandbox with no " +
 	"key, set HAAU3_ENVIRONMENT=sandbox, or pass haau3.WithEnvironmentSandbox()."
+
+// notInTheEnvironment is what a client with no key says when an env file in the current folder sets
+// one and the environment has no HAAU3_API_KEY at all: the file is not loaded into this program. It
+// says only what was seen. The file is named; its contents never are.
+func notInTheEnvironment(file string) string {
+	return "No API key. " + file + " in this folder sets HAAU3_API_KEY, but this program's environment has no " +
+		"value for it. Read the file into the environment before NewClient, with a dotenv package, or, for a " +
+		"file of plain NAME=value lines, run set -a; . ./" + file + "; set +a in a POSIX shell first."
+}
+
+// setButEmpty is what it says when the environment has HAAU3_API_KEY set to nothing and an env file
+// in the current folder sets it: a loader keeps a variable the environment already has, so loading
+// the file would change nothing.
+func setButEmpty(file string) string {
+	return "No API key. HAAU3_API_KEY is set but empty in this program's environment, and " + file + " in this " +
+		"folder sets it. A loader keeps a variable the environment already has, so unset HAAU3_API_KEY where it " +
+		"is set to nothing, then load the file."
+}
+
+// noKeyMessage is the refusal's message for no key. A key given with WithAPIKey, even an empty one,
+// is the caller's choice, so only a key from HAAU3_API_KEY sends it looking for an env file.
+func noKeyMessage(keyFrom string) string {
+	if keyFrom != "HAAU3_API_KEY" {
+		return noKey
+	}
+	file := lookUpEnvFile("")
+	if file == "" {
+		return noKey
+	}
+	if _, present := os.LookupEnv("HAAU3_API_KEY"); present {
+		return setButEmpty(file)
+	}
+	return notInTheEnvironment(file)
+}
 
 // keyKind is a key's mode, from its prefix alone: the API checks the rest.
 type keyKind string
@@ -162,7 +198,7 @@ func NewClient(opts ...Option) (*Client, error) {
 		named, namedIn = Environment(fromEnv), "HAAU3_ENVIRONMENT"
 	}
 	if key == "" && named != EnvironmentSandbox {
-		return nil, refused(CodeNoAPIKey, noKey)
+		return nil, refused(CodeNoAPIKey, noKeyMessage(keyFrom))
 	}
 	chosen := named
 	var mode keyKind
