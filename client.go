@@ -51,11 +51,30 @@ var (
 // the same way.
 const firstAddress = "/v1/sandbox/fhir/r4"
 
-// noKey is what a client with no key says: both ways to give one, where one comes from, and the
-// Sandbox's way to call with none.
+// noKey is what a client with no key says: both ways to give one, where one comes from (the
+// dashboard, or the command line, which writes it to the project's env file), and the Sandbox's way
+// to call with none.
 const noKey = "No API key. Set HAAU3_API_KEY, or pass it as haau3.WithAPIKey. Create a free key at " +
-	"https://platform.haau3.com (see https://docs.haau3.com/authentication). To call the Sandbox with no " +
+	"https://platform.haau3.com, or run npx haau3 login, then npx haau3 keys create, which writes one to " +
+	"this project's env file (see https://docs.haau3.com/authentication). To call the Sandbox with no " +
 	"key, set HAAU3_ENVIRONMENT=sandbox, or pass haau3.WithEnvironmentSandbox()."
+
+// unloaded is what a client with no key says when an env file in the current folder sets one: the
+// program never loaded that file. The file is named; its contents never are.
+func unloaded(file string) string {
+	return "No API key. HAAU3_API_KEY is not set, but " + file + " in this folder sets it, and this program " +
+		"has not loaded that file. Load it first: run set -a; . ./" + file + "; set +a in the shell before " +
+		"the program, or read the file into the environment before NewClient."
+}
+
+// noKeyMessage is the refusal's message for no key, naming an env file the program did not load
+// when there is one.
+func noKeyMessage() string {
+	if file := lookUpEnvFile(""); file != "" {
+		return unloaded(file)
+	}
+	return noKey
+}
 
 // keyKind is a key's mode, from its prefix alone: the API checks the rest.
 type keyKind string
@@ -162,7 +181,7 @@ func NewClient(opts ...Option) (*Client, error) {
 		named, namedIn = Environment(fromEnv), "HAAU3_ENVIRONMENT"
 	}
 	if key == "" && named != EnvironmentSandbox {
-		return nil, refused(CodeNoAPIKey, noKey)
+		return nil, refused(CodeNoAPIKey, noKeyMessage())
 	}
 	chosen := named
 	var mode keyKind

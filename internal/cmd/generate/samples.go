@@ -131,7 +131,7 @@ const firstCall = "searchSlots"
 
 // firstCallLines are the first call's body: the slot search's example, which names a city, with the
 // first slot it found printed whole as indented JSON, since one field says nothing of what a slot
-// is (and fmt would print its pointers).
+// is (and fmt would print its pointers). A search that finds nothing says so, rather than panicking.
 func firstCallLines(o operation) ([]string, error) {
 	var city any
 	for _, p := range o.Query {
@@ -151,6 +151,7 @@ func firstCallLines(o operation) ([]string, error) {
 		fmt.Sprintf("// Open appointment slots, here in %s.", name),
 		fmt.Sprintf("found, err := client.%s(ctx, haau3.%s{%s})", o.Name, o.ParamsType(), strings.Join(fields, ", ")),
 		"if err != nil {", "\tlog.Fatal(err)", "}",
+		"if len(found.Slots) == 0 {", "\tfmt.Println(\"No open slots matched.\")", "\treturn", "}",
 		`slot, err := json.MarshalIndent(found.Slots[0], "", "  ")`,
 		"if err != nil {", "\tlog.Fatal(err)", "}",
 		"fmt.Println(string(slot))",
