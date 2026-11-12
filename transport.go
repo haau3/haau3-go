@@ -54,21 +54,21 @@ func userAgentOf(info *AppInfo) (string, error) {
 		return userAgent, nil
 	}
 	if info.Name == "" {
-		return "", notSent(`AppInfo.Name is required: your app's name, such as "my-plugin".`)
+		return "", refused(CodeInvalidAppInfo, `AppInfo.Name is required: your app's name, such as "my-plugin".`)
 	}
 	if !productToken.MatchString(info.Name) {
-		return "", notSent(fmt.Sprintf(`AppInfo.Name takes %s, such as "my-plugin": %q is not one.`, tokenMarks, info.Name))
+		return "", refused(CodeInvalidAppInfo, fmt.Sprintf(`AppInfo.Name takes %s, such as "my-plugin": %q is not one.`, tokenMarks, info.Name))
 	}
 	product := info.Name
 	if info.Version != "" {
 		if !productToken.MatchString(info.Version) {
-			return "", notSent(fmt.Sprintf(`AppInfo.Version takes %s, such as "1.2.0": %q is not one.`, tokenMarks, info.Version))
+			return "", refused(CodeInvalidAppInfo, fmt.Sprintf(`AppInfo.Version takes %s, such as "1.2.0": %q is not one.`, tokenMarks, info.Version))
 		}
 		product += "/" + info.Version
 	}
 	if info.URL != "" {
 		if !commentText.MatchString(info.URL) || !isWebURL(info.URL) {
-			return "", notSent(fmt.Sprintf(`AppInfo.URL takes an http or https URL with a host and no space, parenthesis or backslash, such as "https://example.com/my-plugin": %q is not one.`, info.URL))
+			return "", refused(CodeInvalidAppInfo, fmt.Sprintf(`AppInfo.URL takes an http or https URL with a host and no space, parenthesis or backslash, such as "https://example.com/my-plugin": %q is not one.`, info.URL))
 		}
 		product += " (" + info.URL + ")"
 	}

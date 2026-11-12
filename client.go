@@ -80,20 +80,20 @@ func kindOfKey(key string) keyKind {
 // mismatch is why a key and a named environment cannot go together, or "" when they can. The key
 // is named by where it came from and its kind, never by its value, and the way to call with no key
 // is the one its source needs.
-func mismatch(mode keyKind, keyFrom string, environment Environment, namedIn string) string {
+func mismatch(mode keyKind, keyFrom string, environment Environment, namedIn string) (code, message string) {
 	withNoKey := "pass no key to call it with none"
 	if keyFrom == "HAAU3_API_KEY" {
 		withNoKey = "unset HAAU3_API_KEY to call it with no key"
 	}
 	switch {
 	case environment == EnvironmentProduction && mode == testKind:
-		return fmt.Sprintf("The key in %s is a test key (haau3_sk_test_…), which works only in the Sandbox, and %s names production. Use a live key there, or name the Sandbox.", keyFrom, namedIn)
+		return CodeTestKeyOutsideSandbox, fmt.Sprintf("The key in %s is a test key (haau3_sk_test_…), which works only in the Sandbox, and %s names production. Use a live key there, or name the Sandbox.", keyFrom, namedIn)
 	case environment == EnvironmentSandbox && mode == liveKind:
-		return fmt.Sprintf("The key in %s is a live key (haau3_sk_live_…), which does not work in the Sandbox, and %s names the Sandbox. Use a test key there, or %s.", keyFrom, namedIn, withNoKey)
+		return CodeLiveKeyInSandbox, fmt.Sprintf("The key in %s is a live key (haau3_sk_live_…), which does not work in the Sandbox, and %s names the Sandbox. Use a test key there, or %s.", keyFrom, namedIn, withNoKey)
 	case environment == EnvironmentSandbox && mode == olderKind:
-		return fmt.Sprintf("The key in %s was made before test and live keys, so it does not work in the Sandbox, and %s names the Sandbox. Create a test key at https://platform.haau3.com, or %s.", keyFrom, namedIn, withNoKey)
+		return CodeOlderKeyInSandbox, fmt.Sprintf("The key in %s was made before test and live keys, so it does not work in the Sandbox, and %s names the Sandbox. Create a test key at https://platform.haau3.com, or %s.", keyFrom, namedIn, withNoKey)
 	}
-	return ""
+	return "", ""
 }
 
 // goos is the operating system the SDK runs on; tests set it.
@@ -129,14 +129,14 @@ type Client struct {
 // mode is not the named environment's, or when an option is not one a client takes.
 func NewClient(opts ...Option) (*Client, error) {
 	if goos == "js" {
-		return nil, notSent("haau3 runs on a server only: an API key in a browser is public. Call the API from your server.")
+		return nil, refused(CodeInBrowser, "haau3 runs on a server only: an API key in a browser is public. Call the API from your server.")
 	}
 	s := apply(opts)
 	if len(s.callOnly) > 0 {
-		return nil, notSent(fmt.Sprintf("NewClient does not take %s, which is for a call only.", strings.Join(s.callOnly, " or ")))
+		return nil, refused(CodeCallOnlyOption, fmt.Sprintf("NewClient does not take %s, which is for a call only.", strings.Join(s.callOnly, " or ")))
 	}
 	if len(s.invalid) > 0 {
-		return nil, notSent(s.invalid[0] + ".")
+		return nil, refused(CodeInvalidOption, s.invalid[0]+".")
 	}
 	// The key, trimmed. One with anything before its haau3_sk_ prefix (quotes an env file kept, or
 	// "Bearer ") is refused, naming only where it came from.
@@ -146,7 +146,7 @@ func NewClient(opts ...Option) (*Client, error) {
 	}
 	key = strings.TrimSpace(key)
 	if strings.Index(key, "haau3_sk_") > 0 {
-		return nil, notSent(fmt.Sprintf(`The key in %s has something before its haau3_sk_ prefix, such as quotes or "Bearer ". Set the key alone.`, keyFrom))
+		return nil, refused(CodeAPIKeyNotAlone, fmt.Sprintf(`The key in %s has something before its haau3_sk_ prefix, such as quotes or "Bearer ". Set the key alone.`, keyFrom))
 	}
 	var named Environment
 	namedIn := ""
@@ -157,20 +157,20 @@ func NewClient(opts ...Option) (*Client, error) {
 		// env file may write it. The value is never repeated, since a variable set by mistake can
 		// hold anything.
 		if Environment(fromEnv) != EnvironmentProduction && Environment(fromEnv) != EnvironmentSandbox {
-			return nil, notSent(`HAAU3_ENVIRONMENT takes "production" or "sandbox", and this is neither.`)
+			return nil, refused(CodeInvalidEnvironment, `HAAU3_ENVIRONMENT takes "production" or "sandbox", and this is neither.`)
 		}
 		named, namedIn = Environment(fromEnv), "HAAU3_ENVIRONMENT"
 	}
 	if key == "" && named != EnvironmentSandbox {
-		return nil, notSent(noKey)
+		return nil, refused(CodeNoAPIKey, noKey)
 	}
 	chosen := named
 	var mode keyKind
 	if key != "" {
 		mode = kindOfKey(key)
 		if named != "" {
-			if refused := mismatch(mode, keyFrom, named, namedIn); refused != "" {
-				return nil, notSent(refused)
+			if code, message := mismatch(mode, keyFrom, named, namedIn); code != "" {
+				return nil, refused(code, message)
 			}
 		} else if mode == testKind {
 			chosen = EnvironmentSandbox
@@ -194,14 +194,14 @@ func NewClient(opts ...Option) (*Client, error) {
 	// key, at the Sandbox's first address, until that address goes.
 	at := environmentAt(checked)
 	if at != "" && named != "" && named != at {
-		return nil, notSent(fmt.Sprintf("%s names %s, and %s is %s. Name one environment, or a base URL that is neither's.", namedIn, namedAs[named], source, addressOf[at]))
+		return nil, refused(CodeEnvironmentConflictsWithBaseURL, fmt.Sprintf("%s names %s, and %s is %s. Name one environment, or a base URL that is neither's.", namedIn, namedAs[named], source, addressOf[at]))
 	}
 	if at == EnvironmentSandbox && mode != "" && mode != testKind {
-		kind := "was made before test and live keys"
+		kind, code := "was made before test and live keys", CodeOlderKeyInSandbox
 		if mode == liveKind {
-			kind = "is a live key (haau3_sk_live_…)"
+			kind, code = "is a live key (haau3_sk_live_…)", CodeLiveKeyInSandbox
 		}
-		return nil, notSent(fmt.Sprintf("The key in %s %s, and %s is %s, which takes test keys only. Use a test key there.", keyFrom, kind, source, addressOf[EnvironmentSandbox]))
+		return nil, refused(code, fmt.Sprintf("The key in %s %s, and %s is %s, which takes test keys only. Use a test key there.", keyFrom, kind, source, addressOf[EnvironmentSandbox]))
 	}
 	environment := chosen
 	if at != "" {

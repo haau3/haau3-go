@@ -160,11 +160,11 @@ func checkedBaseURL(base, source string) (string, error) {
 		scheme = strings.ToLower(u.Scheme)
 	}
 	if err != nil || (scheme != "http" && scheme != "https") || u.Hostname() == "" || u.RawQuery != "" || u.Fragment != "" {
-		return "", notSent(fmt.Sprintf("%s takes an http or https URL with a host, such as https://api.haau3.com: %q is not one.", source, base))
+		return "", refused(CodeInvalidBaseURL, fmt.Sprintf("%s takes an http or https URL with a host, such as https://api.haau3.com: %q is not one.", source, base))
 	}
 	if p := u.Port(); p != "" {
 		if _, err := strconv.ParseUint(p, 10, 16); err != nil {
-			return "", notSent(fmt.Sprintf("%s takes an http or https URL with a host, such as https://api.haau3.com: %q is not one.", source, base))
+			return "", refused(CodeInvalidBaseURL, fmt.Sprintf("%s takes an http or https URL with a host, such as https://api.haau3.com: %q is not one.", source, base))
 		}
 	}
 	return stripped, nil
