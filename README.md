@@ -288,9 +288,9 @@ The codes are the `Code` constants: `no-api-key`, `api-key-not-alone`, `test-key
 `in-browser`. The two the API also answers with keep the API's names. Other errors of `KindNotSent`
 carry no code.
 
-When `HAAU3_API_KEY` is not set but `.env.local` or `.env` in the current folder sets it, the
-`no-api-key` message names that file and how to load it. The SDK looks only for the variable's name
-there, never its value, and only when it has no key.
+When `HAAU3_API_KEY` has no value but `.env.local` or `.env` in the current folder sets it, the
+`no-api-key` message names that file and says how to load it. The SDK looks there only when it has no
+key from `HAAU3_API_KEY`, opens only a regular file, and never keeps or shows the value.
 
 A 403 is `KindForbidden`, never `KindAuth`: the key was accepted, so there is nothing to rotate. Its
 `Code` says why when the API names it, and its message says the same in words. A test key works only

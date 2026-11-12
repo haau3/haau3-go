@@ -336,10 +336,10 @@ func notSent(message string) *Error { return &Error{Kind: KindNotSent, message: 
 // where the value came from (the option or the variable). Two are the API's own names for the same
 // mismatch.
 const (
-	// CodeNoAPIKey: no key, and the Sandbox is not named as the environment. When an env file in the
-	// current folder (.env.local or .env) sets HAAU3_API_KEY but the program never loaded it, the
-	// message names that file and how to load it. Only the variable's name is looked for, never its
-	// value.
+	// CodeNoAPIKey: no key, and the Sandbox is not named as the environment. When HAAU3_API_KEY has no
+	// value but an env file in the current folder (.env.local or .env) sets it, the message names that
+	// file and says how to load it. The file is looked at only for a key from HAAU3_API_KEY, only when
+	// it is a regular file, and its value is never kept or shown.
 	CodeNoAPIKey = "no-api-key"
 	// CodeAPIKeyNotAlone: the key has something before its haau3_sk_ prefix, such as the quotes an
 	// env file kept, or "Bearer ".
