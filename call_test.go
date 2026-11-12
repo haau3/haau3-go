@@ -225,6 +225,8 @@ func TestWhatDoesNotMatchIsRefusedBeforeAnythingIsSent(t *testing.T) {
 		{"a {name} with no value", "GET", practitionerPath, CallParams{}, nil, `PathParams has no value for \{id\}`},
 		{"a value with no {name}", "GET", "/v1/fhir/r4/metadata", CallParams{PathParams: map[string]string{"id": pathValue}}, nil, `the path has no \{id\} for PathParams' value`},
 		{"an empty value", "GET", practitionerPath, CallParams{PathParams: map[string]string{"id": ""}}, nil, `its path value id is empty`},
+		{"a value of .", "GET", practitionerPath, CallParams{PathParams: map[string]string{"id": "."}}, nil, `its path value id is "\." or "\.\.", which would send the request to another path`},
+		{"a value of ..", "GET", practitionerPath, CallParams{PathParams: map[string]string{"id": ".."}}, nil, `its path value id is "\." or "\.\.", which would send the request to another path`},
 		{"a body on a GET", "GET", "/v1/fhir/r4/metadata", CallParams{Body: "{}"}, nil, `a GET takes no body`},
 		{"a res that is not a pointer", "GET", "/v1/fhir/r4/metadata", CallParams{}, notAPointer, `res must be a pointer`},
 		{"a URL on another host", "GET", "https://elsewhere.example/v1/fhir/r4/metadata", CallParams{}, nil, `elsewhere\.example`},
@@ -253,5 +255,41 @@ func TestWhatDoesNotMatchIsRefusedBeforeAnythingIsSent(t *testing.T) {
 				t.Fatalf("%d requests were sent", rec.count())
 			}
 		})
+	}
+}
+
+// A generated method shares the refusal: ".." would read /v1/fhir/r4/Practitioner/.. as the base.
+func TestAGeneratedMethodRefusesAValueThatWouldChangeThePath(t *testing.T) {
+	for _, value := range []string{".", ".."} {
+		rec := record(fhirReply(200, map[string]any{"resourceType": "Practitioner"}))
+		_, err := testClient(t, rec).ReadPractitioner(context.Background(), value)
+		if e := asError(t, err); e.Kind != KindNotSent {
+			t.Fatalf("%q: kind %v", value, e.Kind)
+		}
+		if rec.count() != 0 {
+			t.Fatalf("%q: %d requests were sent", value, rec.count())
+		}
+	}
+}
+
+// Dots inside a value stay, a {name} written twice is filled twice, and a name may have a dash.
+func TestPathValuesAndPlaceholders(t *testing.T) {
+	rec := record(plainReply(200, map[string]any{}))
+	c := testClient(t, rec)
+	for _, tc := range []struct {
+		path   string
+		params map[string]string
+		want   string
+	}{
+		{practitionerPath, map[string]string{"id": "a..b"}, "/v1/fhir/r4/Practitioner/a..b"},
+		{"/v1/a/{id}/b/{id}", map[string]string{"id": "x"}, "/v1/a/x/b/x"},
+		{"/v1/a/{my-id}", map[string]string{"my-id": "y"}, "/v1/a/y"},
+	} {
+		if err := c.Get(context.Background(), tc.path, CallParams{PathParams: tc.params}, nil); err != nil {
+			t.Fatal(err)
+		}
+		if got := rec.last().URL.EscapedPath(); got != tc.want {
+			t.Fatalf("%s: sent %s", tc.path, got)
+		}
 	}
 }
