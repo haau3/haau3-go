@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.3.0](https://github.com/haau3/haau3-go/compare/v0.2.9...v0.3.0) (2026-11-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* the key's mode picks the host, and WithEnvironmentSandbox calls the Sandbox with no key ([#58](https://github.com/haau3/haau3-go/issues/58))
+
+### Features
+
+* the key's mode picks the host, and WithEnvironmentSandbox calls the Sandbox with no key ([#58](https://github.com/haau3/haau3-go/issues/58)) ([13e4dc7](https://github.com/haau3/haau3-go/commit/13e4dc743c27c0b5389f0eff2f4ec7ddca5bdcff))
+
 ## [0.2.9](https://github.com/haau3/haau3-go/compare/v0.2.8...v0.2.9) (2026-11-12)
 
 
