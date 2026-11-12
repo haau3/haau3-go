@@ -2,7 +2,7 @@
 
 # API reference
 
-Every operation of the haau3 platform API (`1.0.0-preview.29`) is a method on `*haau3.Client`, named by
+Every operation of the haau3 platform API (`1.0.0-preview.32`) is a method on `*haau3.Client`, named by
 its operationId in Go's style (`fhirMetadata` is `FHIRMetadata`). Each links to its page on
 docs.haau3.com, which shows its parameters and an example exchange. Every method takes a
 `context.Context` first; then the path values; then `body` for an operation that takes one;
@@ -12,7 +12,7 @@ Every method also takes the per-call options `WithTimeout`, `WithMaxRetries`, `W
 `WithHeader`, `WithAPIKey` and `WithResponseInfo`, which gives the request id and timing too.
 
 An operation that declares a header takes it as an option of its own, named from the header and
-checked before sending: `ProcessMessage` takes `WithPayerAuthorization`, sent as `Payer-Authorization`.
+checked before sending: `ProcessMessage` and `SandboxProcessMessage` takes `WithPayerAuthorization`, sent as `Payer-Authorization`.
 
 `Client.Batch` sends several of these as one request, each with its own answer or error, from the
 entries `haau3.Calls` makes. It takes every operation on the FHIR base except `FHIRBatch`, `ProcessMessage` and `ReconcileMedications`:
@@ -121,7 +121,7 @@ A prescription's free-text directions as a FHIR Dosage: the dose, unit, route, m
 
 ## Sandbox
 
-The FHIR base without production behind it, to build and test against: the same paths at `/v1/sandbox/fhir/r4`, answered with synthetic data that always gives the same answer. Its first service is the CARIN Consumer Real-Time Pharmacy Benefit Check, answered by Example Health Plan, a test insurer. It takes a test key (`haau3_sk_test_…`), made on the API keys page, and each request counts like any other. Send test members only, never a real person.
+The FHIR base without production behind it, to build and test against: the same paths at `/v1/sandbox/fhir/r4`, answered with synthetic data that always gives the same answer. Its first service is the CARIN Consumer Real-Time Pharmacy Benefit Check, answered by Example Health Plan, a test insurer. It takes a test key (`haau3_sk_test_…`), made on the API keys page. A test key's requests count toward its organization's requests a minute, apart from its production requests, and never toward the plan's month. Send test members only, never a real person.
 
 | Method | Request | What it does |
 |---|---|---|
