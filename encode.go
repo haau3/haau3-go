@@ -132,9 +132,12 @@ func encodePathValue(value string) string {
 	return b.String()
 }
 
-var placeholder = regexp.MustCompile(`\{(\w+)\}`)
+var placeholder = regexp.MustCompile(`\{([^{}]+)\}`)
 
-// fillPath is the operation's path with each `{name}` replaced by its value, encoded, in order.
+// fillPath is the operation's path with each `{name}` replaced by its value, encoded, in order. A
+// value that is empty, "." or ".." is refused: a URL reads those as another path, so the request
+// would go elsewhere while its message named the template. The error names the placeholder, never
+// the value.
 func fillPath(template string, values []string) (string, error) {
 	names := placeholder.FindAllString(template, -1)
 	if len(names) != len(values) {
@@ -144,6 +147,9 @@ func fillPath(template string, values []string) (string, error) {
 	for i, name := range names {
 		if values[i] == "" {
 			return "", fmt.Errorf("its path value %s is empty", strings.Trim(name, "{}"))
+		}
+		if values[i] == "." || values[i] == ".." {
+			return "", fmt.Errorf("its path value %s is \".\" or \"..\", which would send the request to another path", strings.Trim(name, "{}"))
 		}
 		path = strings.Replace(path, name, encodePathValue(values[i]), 1)
 	}
