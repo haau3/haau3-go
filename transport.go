@@ -164,7 +164,9 @@ func (c *Client) send(ctx context.Context, method, url string, content []byte, s
 	if speaksFHIR {
 		header.Set("Accept", fhirJSON)
 	}
-	header.Set("Authorization", "Bearer "+s.key)
+	if s.key != "" {
+		header.Set("Authorization", "Bearer "+s.key)
+	}
 	header.Set("User-Agent", c.userAgent)
 	if content != nil {
 		header.Set("Content-Type", "application/json")
@@ -265,7 +267,7 @@ func answerOf(name string, expects []string, a *answer) ([]byte, judgeContext, *
 func call[R any](ctx context.Context, c *Client, op *operation, pathValues []string, q query, queryErr error,
 	body any, decode func([]byte) (R, error), opts []Option) (R, error) {
 	var zero R
-	name := op.label()
+	name := c.label(op)
 	s, err := c.settingsFor(name, opts, op.headers...)
 	if err != nil {
 		return zero, err
@@ -300,11 +302,11 @@ func what(expects []string, data []byte) string {
 
 // prepare is an operation's URL and body, or the error of KindNotSent that refuses it.
 func (c *Client) prepare(op *operation, pathValues []string, q query, queryErr error, body any) (string, []byte, error) {
-	name := op.label()
+	name := c.label(op)
 	if queryErr != nil {
 		return "", nil, notSent(fmt.Sprintf("%s was not sent: %v.", name, queryErr))
 	}
-	path, err := fillPath(op.path, pathValues)
+	path, err := fillPath(c.sentPath(op), pathValues)
 	if err != nil {
 		return "", nil, notSent(fmt.Sprintf("%s was not sent: %v.", name, err))
 	}

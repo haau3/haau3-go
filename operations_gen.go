@@ -11,7 +11,7 @@ import (
 )
 
 // SpecVersion is the version of the API's spec this release was generated from.
-const SpecVersion = "1.0.0-preview.32"
+const SpecVersion = "1.0.0-preview.33"
 
 // Each operation of the spec: its method, its path and what its answer may be.
 var (
@@ -1518,10 +1518,17 @@ func (c *Client) ReconcileMedications(ctx context.Context, body fhir.Resource, o
 // own `CapabilityStatement`, which says what the Sandbox serves: today the pharmacy benefit check,
 // `$process-message`, as CARIN's responder (STU2 ballot, `2.0.0-ballot`), receiving both of its
 // request messages. It takes no parameters. Send a test key (`haau3_sk_test_…`): a live key is
-// refused with `live-key-in-sandbox`.
+// refused with `live-key-in-sandbox`. Deprecated: call `fhirMetadata` on the Sandbox's own host,
+// `https://sandbox.haau3.com`, with a test key or none. Its CapabilityStatement lists every service
+// the Sandbox answers. This address is removed once it has gone 14 days without a call, with a
+// changelog entry that day.
 //
 // GET /v1/sandbox/fhir/r4/metadata (sandboxMetadata):
 // https://docs.haau3.com/api-reference/sandbox/the-sandboxs-capability-statement
+//
+// Deprecated: Call `FHIRMetadata` on the Sandbox's own host, `https://sandbox.haau3.com`, with a
+// test key or none. Its CapabilityStatement lists every service the Sandbox answers. This address
+// is removed once it has gone 14 days without a call, with a changelog entry that day.
 func (c *Client) SandboxMetadata(ctx context.Context, opts ...Option) (*fhir.CapabilityStatement, error) {
 	return call(ctx, c, &opSandboxMetadata, nil, nil, nil, nil, decodeAs[fhir.CapabilityStatement], opts)
 }
@@ -1562,12 +1569,19 @@ func (c *Client) SandboxMetadata(ctx context.Context, opts ...Option) (*fhir.Cap
 // when. Amounts are fixed, whatever the quantity. Nothing a request carries is stored or logged,
 // and every answer is sent with `Cache-Control: no-store`. The operation takes no query parameters.
 // The test members and the formulary table are at
-// https://docs.haau3.com/sandbox/example-health-plan.
+// https://docs.haau3.com/sandbox/example-health-plan. Deprecated: call `processMessage` on the
+// Sandbox's own host, `https://sandbox.haau3.com`, with a test key or none. It takes the same
+// request and gives the same answers. This address is removed once it has gone 14 days without a
+// call, with a changelog entry that day.
 //
 // POST /v1/sandbox/fhir/r4/$process-message (sandboxProcessMessage):
 // https://docs.haau3.com/api-reference/sandbox/check-a-test-members-medication-cost-with-a-test-insurer
 //
 // WithPayerAuthorization sends Payer-Authorization, checked before sending.
+//
+// Deprecated: Call `ProcessMessage` on the Sandbox's own host, `https://sandbox.haau3.com`, with a
+// test key or none. It takes the same request and gives the same answers. This address is removed
+// once it has gone 14 days without a call, with a changelog entry that day.
 func (c *Client) SandboxProcessMessage(ctx context.Context, body *fhir.Bundle, opts ...Option) (*fhir.Bundle, error) {
 	return call(ctx, c, &opSandboxProcessMessage, nil, nil, nil, bodyOf(body), decodeAs[fhir.Bundle], opts)
 }

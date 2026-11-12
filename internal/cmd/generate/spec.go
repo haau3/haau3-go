@@ -43,7 +43,7 @@ type header struct {
 // callOptions are the options the SDK writes by hand; a header's option must not be one of them.
 var callOptions = []string{
 	"WithAPIKey", "WithBaseURL", "WithHTTPClient", "WithTimeout", "WithMaxRetries", "WithCorrelationID",
-	"WithHeader", "WithResponseInfo",
+	"WithHeader", "WithResponseInfo", "WithEnvironmentProduction", "WithEnvironmentSandbox",
 }
 
 // operation is one operation of the spec, as the generator writes it.
@@ -70,6 +70,11 @@ type operation struct {
 	Example     json.RawMessage // the spec's example answer
 	BodyExample json.RawMessage // the spec's example request body
 	BodyLabel   string          // the label the spec gives that example
+	// Deprecated is what to call instead, when the spec marks the operation deprecated: the passage
+	// of its description from "Deprecated:", each operationId in it written as its Go method.
+	Deprecated string
+	// deprecatedMark is the spec's own `deprecated` field, read once every operation is known.
+	deprecatedMark any
 }
 
 func (o operation) ParamsType() string { return o.Name + "Params" }
@@ -243,6 +248,18 @@ func (s *spec) readOperations() error {
 	if !slices.ContainsFunc(s.Operations, func(o operation) bool { return o.Path == fhirBase && o.Method == "POST" }) {
 		return fmt.Errorf("the spec has no batch at POST %s", fhirBase)
 	}
+	methods := map[string]string{}
+	for _, op := range s.Operations {
+		methods[op.ID] = op.Name
+	}
+	for i := range s.Operations {
+		op := &s.Operations[i]
+		words, err := deprecation(op.ID, op.deprecatedMark, op.Description, methods)
+		if err != nil {
+			return err
+		}
+		op.Deprecated = words
+	}
 	names := map[string]string{}
 	headers := map[string]header{}
 	for i := range s.Operations {
@@ -266,6 +283,44 @@ func (s *spec) readOperations() error {
 	}
 	slices.SortFunc(s.Operations, func(a, b operation) int { return cmp.Compare(a.ID, b.ID) })
 	return nil
+}
+
+const deprecatedMark = "Deprecated:"
+
+// operationIDInBackticks is an operationId as a description names it: `processMessage`.
+var operationIDInBackticks = regexp.MustCompile("`([A-Za-z][A-Za-z0-9]*)`")
+
+// deprecation is what a deprecated operation's method says, or "" when it is not deprecated:
+// OpenAPI's own `deprecated: true`, and the passage of the operation's description from
+// "Deprecated:" to its end, which names what to call instead by its operationId in backticks, each
+// written here as its Go method. The method's doc comment ends with it as a "Deprecated:" paragraph,
+// which go vet's tools, gopls and pkg.go.dev read. The spec defines the field only as true, and a
+// deprecated operation's description names a replacement that exists, so anything else stops the
+// generator rather than being guessed at.
+func deprecation(id string, mark any, description string, methods map[string]string) (string, error) {
+	if mark == nil || mark == false {
+		return "", nil
+	}
+	if mark != true {
+		return "", fmt.Errorf("%s carries deprecated: %v, where the spec defines only true", id, mark)
+	}
+	parts := strings.Split(description, deprecatedMark)
+	if len(parts) != 2 {
+		return "", fmt.Errorf("%s is deprecated, and its description needs exactly one passage from %q naming what to call instead", id, deprecatedMark)
+	}
+	words := strings.Join(strings.Fields(parts[1]), " ")
+	named := false
+	words = operationIDInBackticks.ReplaceAllStringFunc(words, func(quoted string) string {
+		if method, ok := methods[strings.Trim(quoted, "`")]; ok {
+			named = true
+			return "`" + method + "`"
+		}
+		return quoted
+	})
+	if !named {
+		return "", fmt.Errorf("%s is deprecated, and its %q passage names no operation of the spec to call instead", id, deprecatedMark)
+	}
+	return strings.ToUpper(words[:1]) + words[1:], nil
 }
 
 // readHeader reads an optional header parameter: a string, with a name Go can give an option, and
@@ -298,6 +353,7 @@ func (s *spec) readOperation(path, method string, op object, here pointer) (oper
 	o := operation{ID: id, Name: goName(id), Method: method, Path: path}
 	o.Summary, _ = op["summary"].(string)
 	o.Description, _ = op["description"].(string)
+	o.deprecatedMark = op["deprecated"]
 	o.Tag = "Other"
 	if tags := asList(op["tags"]); len(tags) > 0 {
 		o.Tag = tags[0].(string)

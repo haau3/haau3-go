@@ -19,6 +19,7 @@ type Option func(*settings)
 
 type settings struct {
 	apiKey        *string
+	environment   *namedEnvironment
 	baseURL       *string
 	httpClient    *http.Client
 	timeout       *time.Duration
@@ -44,14 +45,57 @@ func apply(opts []Option) *settings {
 }
 
 // WithAPIKey sets the platform API key. Without it, NewClient reads HAAU3_API_KEY from the
-// environment. Create a key on platform.haau3.com.
+// environment. Create a key on platform.haau3.com. The key's mode picks the environment: a test key
+// (haau3_sk_test_…) sends every call to the Sandbox, and a live key (haau3_sk_live_…), or one made
+// before test and live keys, to production. Given to a call, a key of the other mode than the
+// client's environment is refused with an error of KindNotSent; a call's key never changes the host.
 func WithAPIKey(key string) Option {
 	return func(s *settings) { s.apiKey = &key }
 }
 
-// WithBaseURL sets where the API is: an http or https URL with a host. It defaults to
-// HAAU3_BASE_URL when that is set, and to https://api.haau3.com otherwise. The API key is sent
-// there only. For NewClient only.
+// Environment is one of the API's two environments: production, at https://api.haau3.com, and the
+// Sandbox, at https://sandbox.haau3.com, which serves production's paths with fixed answers and
+// synthetic data, to build and test against.
+type Environment string
+
+const (
+	// EnvironmentProduction is https://api.haau3.com.
+	EnvironmentProduction Environment = "production"
+	// EnvironmentSandbox is https://sandbox.haau3.com.
+	EnvironmentSandbox Environment = "sandbox"
+)
+
+// namedEnvironment is an environment as an option names it, with the option's name for a message.
+type namedEnvironment struct {
+	environment Environment
+	option      string
+}
+
+// WithEnvironmentSandbox calls the Sandbox, https://sandbox.haau3.com, which answers with no key
+// too: with this option and no key, the client sends no Authorization header. A live key, or one
+// made before test and live keys, is refused with an error of KindNotSent, before anything is sent.
+// Without an environment option, NewClient reads HAAU3_ENVIRONMENT, then the key's mode. For
+// NewClient only.
+func WithEnvironmentSandbox() Option {
+	return func(s *settings) {
+		s.environment = &namedEnvironment{EnvironmentSandbox, "WithEnvironmentSandbox"}
+		s.clientOnly = append(s.clientOnly, "WithEnvironmentSandbox")
+	}
+}
+
+// WithEnvironmentProduction calls production, https://api.haau3.com, which always needs a key. A
+// test key is refused with an error of KindNotSent, before anything is sent. For NewClient only.
+func WithEnvironmentProduction() Option {
+	return func(s *settings) {
+		s.environment = &namedEnvironment{EnvironmentProduction, "WithEnvironmentProduction"}
+		s.clientOnly = append(s.clientOnly, "WithEnvironmentProduction")
+	}
+}
+
+// WithBaseURL sets where the API is, for a stand-in or a proxy: an http or https URL with a host.
+// It defaults to HAAU3_BASE_URL when that is set, and to the environment's address otherwise. The
+// API key is sent there only, and the environment's rules for the key still hold. For NewClient
+// only.
 func WithBaseURL(url string) Option {
 	return func(s *settings) {
 		s.baseURL = &url
