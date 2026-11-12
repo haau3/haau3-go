@@ -27,7 +27,8 @@ const (
 	KindAuth
 	// KindRefused is the API answering and refusing the request: a parameter it does not take, a
 	// record that does not exist (404), a page that no longer exists (410), a body that is too
-	// large (413). Status says which, and the body says why.
+	// large (413). Status says which, and the body says why. Code says why when the API names it:
+	// "not-the-example" from the Sandbox, which answers each operation's documented example only.
 	KindRefused
 	// KindNoAnswer is a request that got no answer, after every attempt the client was allowed.
 	// Reason says why. It never means "no results": an empty search answers with an empty Bundle
@@ -147,7 +148,8 @@ type Error struct {
 	// one: "test-key-outside-sandbox" (a test key works only in the Sandbox), "live-key-in-sandbox"
 	// (a live key does not work there), "phi-agreement-required" (patient data not all labelled as
 	// test data), "not-open-to-customers" (the operation is not yet open to customers). For
-	// KindNotSent from NewClient it is why the client could not be made: one of the Code constants,
+	// KindRefused it is the API's own code when it names one: "not-the-example" from the Sandbox,
+	// which answers each operation's documented example only. For KindNotSent from NewClient it is why the client could not be made: one of the Code constants,
 	// such as CodeNoAPIKey. Other errors of KindNotSent carry none.
 	Code string
 	// Reason says why there was no answer, for KindNoAnswer.

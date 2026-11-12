@@ -235,6 +235,7 @@ if errors.As(err, &e) {
 	switch e.Kind {
 	case haau3.KindRefused:
 		fmt.Println(e.Status)    // 400, 404, 410 and so on
+		fmt.Println(e.Code)      // why, when the API names it: "not-the-example" from the Sandbox
 		fmt.Println(e.Outcome()) // the OperationOutcome; Scheduling's errors carry e.Problem()
 	case haau3.KindNoAnswer:
 		fmt.Println(e.Reason)     // timeout, network, rate-limited, unavailable, server-error or unreadable
@@ -242,7 +243,7 @@ if errors.As(err, &e) {
 		fmt.Println(e.Detail)     // for a timeout or a network failure: what failed, such as "dial: connection refused"
 	case haau3.KindForbidden:
 		// 403: the key was accepted, and it may not make this request
-		fmt.Println(e.Code) // why, when the API names it: "test-key-outside-sandbox", "live-key-in-sandbox", "phi-agreement-required"
+		fmt.Println(e.Code) // why, when the API names it: "test-key-outside-sandbox", "live-key-in-sandbox", "phi-agreement-required", "not-open-to-customers"
 	case haau3.KindAuth:
 		// 401: the key was missing, unknown or revoked
 	case haau3.KindNotSent:
@@ -276,7 +277,13 @@ in the Sandbox (`test-key-outside-sandbox`: send a live key), and a live key doe
 meet these with a base URL of your own, a key given to one call, or by calling the deprecated
 `Sandbox…` methods with a live key. `phi-agreement-required` means the organization may not
 send patient data, and not every resource in the request is labelled as test data: `MarkAsTestData`
-labels made-up data. Without a code, the body says what the organization may not do.
+labels made-up data. `not-open-to-customers` means the operation is not yet open to customers: an
+expected answer, not a fault in the request. Without a code, the body says what the organization may
+not do.
+
+An error of `KindRefused` carries the API's reason in its `Code` when it names one: `not-the-example`
+from the Sandbox, which answers each operation's documented example only and refuses any other
+request.
 
 `errors.Is(err, haau3.ErrNoAnswer)` checks the kind alone, and the same for `ErrAuth`,
 `ErrForbidden`, `ErrRefused` and `ErrNotSent`. A no-answer error unwraps to the network error behind it, so
