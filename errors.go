@@ -41,9 +41,11 @@ const (
 	//   - "live-key-in-sandbox": a live key does not work in the Sandbox. Send a test key.
 	//   - "phi-agreement-required": the organization may not send patient data, and not every
 	//     resource in the request is labelled as test data. MarkAsTestData labels made-up data.
+	//   - "not-open-to-customers": the operation is not yet open to customers, so it did not run.
+	//     An expected answer, not a fault in the request.
 	//
-	// Without a code, the key's organization may not make the request, or the operation is not yet
-	// open to it; the body says why, in the API's words.
+	// Without a code, the key's organization may not make the request; the body says why, in the
+	// API's words.
 	KindForbidden
 )
 
@@ -144,8 +146,9 @@ type Error struct {
 	// code for why it refused a request with a 403, from its api-error code system, when it names
 	// one: "test-key-outside-sandbox" (a test key works only in the Sandbox), "live-key-in-sandbox"
 	// (a live key does not work there), "phi-agreement-required" (patient data not all labelled as
-	// test data). For KindNotSent from NewClient it is why the client could not be made: one of the
-	// Code constants, such as CodeNoAPIKey. Other errors of KindNotSent carry none.
+	// test data), "not-open-to-customers" (the operation is not yet open to customers). For
+	// KindNotSent from NewClient it is why the client could not be made: one of the Code constants,
+	// such as CodeNoAPIKey. Other errors of KindNotSent carry none.
 	Code string
 	// Reason says why there was no answer, for KindNoAnswer.
 	Reason Reason

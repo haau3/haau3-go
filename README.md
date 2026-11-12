@@ -494,6 +494,30 @@ longer list as several batches. Every operation on the FHIR base can go in a bat
 To send a batch `Bundle` you built yourself, `FHIRBatch` takes it and returns the `batch-response`
 as it is.
 
+## Any operation by its path
+
+`Get` and `Post` call an operation by its path: one this version of the module has no method for
+yet, or one a tool found in the spec. Each takes the path as the spec writes it and a `CallParams`:
+a value for each `{name}` in `PathParams`, the `Query`, the `Body` (for `Post`) and the FHIR types
+the answer may be in `Expects`. They decode the answer into the value you point at, and return the
+same errors as every operation's own method; `WithResponseInfo` gives the request id and timing too:
+
+```go
+var practitioner fhir.Practitioner
+var info haau3.ResponseInfo
+err := client.Get(ctx, "/v1/fhir/r4/Practitioner/{id}", haau3.CallParams{
+	PathParams: map[string]string{"id": "Practitioner-1093209884"},
+	Expects:    []string{"Practitioner"},
+}, &practitioner, haau3.WithResponseInfo(&info))
+if err != nil {
+	return err
+}
+fmt.Println(info.RequestID)
+```
+
+Each value is encoded into the path, and an error's message names the path as you wrote it, never a
+value. A `{name}` with no value, or a value with no `{name}`, is refused before anything is sent.
+
 ## Any request
 
 `Request` sends a request as you give it and returns what the API answered, whatever the status,
