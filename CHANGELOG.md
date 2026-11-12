@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.4](https://github.com/haau3/haau3-go/compare/v0.3.3...v0.3.4) (2026-11-12)
+
+
+### Bug Fixes
+
+* the API's spec at 1.0.0-preview.35 ([#67](https://github.com/haau3/haau3-go/issues/67)) ([7e94a9f](https://github.com/haau3/haau3-go/commit/7e94a9f66f89542571f5b4b5dca6a62965074774))
+
 ## [0.3.3](https://github.com/haau3/haau3-go/compare/v0.3.2...v0.3.3) (2026-11-12)
 
 
