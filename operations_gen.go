@@ -11,7 +11,7 @@ import (
 )
 
 // SpecVersion is the version of the API's spec this release was generated from.
-const SpecVersion = "1.0.0-preview.33"
+const SpecVersion = "1.0.0-preview.34"
 
 // Each operation of the spec: its method, its path and what its answer may be.
 var (
