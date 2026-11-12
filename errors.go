@@ -140,10 +140,12 @@ type Error struct {
 	// StatusText is that status's text: the answer's own, or the standard one when it came with
 	// none, as HTTP/2 answers do. Empty when the API did not answer.
 	StatusText string
-	// Code is the API's own code for why it refused a request with a 403 (KindForbidden), from its
-	// api-error code system, when it names one: "test-key-outside-sandbox" (a test key works only
-	// in the Sandbox), "live-key-in-sandbox" (a live key does not work there),
-	// "phi-agreement-required" (patient data not all labelled as test data).
+	// Code is why, as a code to branch on, when there is one. For KindForbidden it is the API's own
+	// code for why it refused a request with a 403, from its api-error code system, when it names
+	// one: "test-key-outside-sandbox" (a test key works only in the Sandbox), "live-key-in-sandbox"
+	// (a live key does not work there), "phi-agreement-required" (patient data not all labelled as
+	// test data). For KindNotSent from NewClient it is why the client could not be made: one of the
+	// Code constants, such as CodeNoAPIKey. Other errors of KindNotSent carry none.
 	Code string
 	// Reason says why there was no answer, for KindNoAnswer.
 	Reason Reason
@@ -323,3 +325,42 @@ var (
 )
 
 func notSent(message string) *Error { return &Error{Kind: KindNotSent, message: message} }
+
+// The codes of an error of KindNotSent from NewClient, in its Code: why the client could not be made,
+// before anything was sent. Branch on the code; the message says the same for a person, and names
+// where the value came from (the option or the variable). Two are the API's own names for the same
+// mismatch.
+const (
+	// CodeNoAPIKey: no key, and the Sandbox is not named as the environment.
+	CodeNoAPIKey = "no-api-key"
+	// CodeAPIKeyNotAlone: the key has something before its haau3_sk_ prefix, such as the quotes an
+	// env file kept, or "Bearer ".
+	CodeAPIKeyNotAlone = "api-key-not-alone"
+	// CodeTestKeyOutsideSandbox: a test key with production named.
+	CodeTestKeyOutsideSandbox = "test-key-outside-sandbox"
+	// CodeLiveKeyInSandbox: a live key with the Sandbox named, or with the Sandbox's address as the
+	// base URL.
+	CodeLiveKeyInSandbox = "live-key-in-sandbox"
+	// CodeOlderKeyInSandbox: the same for a key made before test and live keys.
+	CodeOlderKeyInSandbox = "older-key-in-sandbox"
+	// CodeInvalidEnvironment: HAAU3_ENVIRONMENT is neither "production" nor "sandbox".
+	CodeInvalidEnvironment = "invalid-environment"
+	// CodeInvalidBaseURL: a base URL that is not an http or https URL with a host and no query.
+	CodeInvalidBaseURL = "invalid-base-url"
+	// CodeEnvironmentConflictsWithBaseURL: a named environment, and a base URL on the other
+	// environment's own address.
+	CodeEnvironmentConflictsWithBaseURL = "environment-conflicts-with-base-url"
+	// CodeInvalidAppInfo: a WithAppInfo the User-Agent cannot carry.
+	CodeInvalidAppInfo = "invalid-app-info"
+	// CodeInvalidOption: an option NewClient takes, with a value it does not, such as WithTimeout(0).
+	CodeInvalidOption = "invalid-option"
+	// CodeCallOnlyOption: an option for a call only, such as WithCorrelationID, given to NewClient.
+	CodeCallOnlyOption = "call-only-option"
+	// CodeInBrowser: the client was made in a browser (GOOS js), where an API key is public.
+	CodeInBrowser = "in-browser"
+)
+
+// refused is NewClient's refusal: an error of KindNotSent with its code.
+func refused(code, message string) *Error {
+	return &Error{Kind: KindNotSent, Code: code, message: message}
+}

@@ -130,14 +130,17 @@ fmt.Println(sandbox.Environment(), sandbox.BaseURL()) // sandbox https://sandbox
 ```
 
 A key made before test and live keys goes to production, as a live key does. These are errors of
-`KindNotSent` from `NewClient`, before anything is sent, and the error says where the key came from:
+`KindNotSent` from `NewClient`, before anything is sent. The error says where the key came from, and
+its `Code` says which it is:
 
-- a test key with `WithEnvironmentProduction`;
+- a test key with `WithEnvironmentProduction` (`CodeTestKeyOutsideSandbox`);
 - a live key, or one made before test and live keys, with `WithEnvironmentSandbox` or with the
-  Sandbox's address as the base URL;
-- no key without the Sandbox named;
-- an environment option that a base URL on the other environment's address contradicts;
-- a key with anything before its `haau3_sk_` prefix, such as the quotes an env file kept.
+  Sandbox's address as the base URL (`CodeLiveKeyInSandbox`, `CodeOlderKeyInSandbox`);
+- no key without the Sandbox named (`CodeNoAPIKey`);
+- an environment option that a base URL on the other environment's address contradicts
+  (`CodeEnvironmentConflictsWithBaseURL`);
+- a key with anything before its `haau3_sk_` prefix, such as the quotes an env file kept
+  (`CodeAPIKeyNotAlone`).
 
 A key given to one call with `WithAPIKey` is sent as it is, to the client's host. `Environment` and
 `BaseURL` on the client say what it resolved.
@@ -247,6 +250,24 @@ if errors.As(err, &e) {
 	}
 }
 ```
+
+A client that cannot be made is an error of `KindNotSent` from `NewClient`, before anything is sent,
+with a `Code` to branch on. The message says the same for a person and names where the value came
+from, the option or the variable:
+
+```go
+client, err := haau3.NewClient()
+var e *haau3.Error
+if errors.As(err, &e) && e.Code == haau3.CodeNoAPIKey {
+	// set HAAU3_API_KEY, or name the Sandbox to call it with no key
+}
+```
+
+The codes are the `Code` constants: `no-api-key`, `api-key-not-alone`, `test-key-outside-sandbox`,
+`live-key-in-sandbox`, `older-key-in-sandbox`, `invalid-environment`, `invalid-base-url`,
+`environment-conflicts-with-base-url`, `invalid-app-info`, `invalid-option`, `call-only-option` and
+`in-browser`. The two the API also answers with keep the API's names. Other errors of `KindNotSent`
+carry no code.
 
 A 403 is `KindForbidden`, never `KindAuth`: the key was accepted, so there is nothing to rotate. Its
 `Code` says why when the API names it, and its message says the same in words. A test key works only
