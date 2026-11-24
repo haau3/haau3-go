@@ -123,7 +123,7 @@ func TestACallToEitherFHIRBaseAsksForAndSendsFHIRJSON(t *testing.T) {
 		// The controls.
 		{"/v1/sandbox", false},
 		{"/v1/sandbox/fhirish", false},
-		{"/v1/scheduling/slots", false},
+		{"/v1/elsewhere", false},
 	} {
 		want := "application/json"
 		if tc.fhir {

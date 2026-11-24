@@ -133,7 +133,7 @@ const (
 //	}
 //
 // An Error never prints the body the API answered with, by any of fmt's verbs, by slog, or by
-// json.Marshal: Outcome and Problem are the only ways to read it. Its message names the request by
+// json.Marshal: Outcome is the only way to read it. Its message names the request by
 // its method and the operation's path, never by a value you sent.
 type Error struct {
 	// Kind says which error this is.
@@ -172,7 +172,6 @@ type Error struct {
 	message       string
 	hasRetryAfter bool
 	outcome       func() *fhir.OperationOutcome
-	problem       func() *Problem
 	cause         error
 }
 
@@ -190,22 +189,14 @@ func (e *Error) Is(target error) bool {
 	return ok && k.kind == e.Kind
 }
 
-// Outcome is the OperationOutcome the FHIR base answered an error with, or nil. It is never
-// printed when the error is.
+// Outcome is the OperationOutcome the API answered an error with, or nil. Every service answers an
+// error with one; a request to an address no service serves (a mistyped base URL, say) is the
+// error for its status with none. It is never printed when the error is.
 func (e *Error) Outcome() *fhir.OperationOutcome {
 	if e.outcome == nil {
 		return nil
 	}
 	return e.outcome()
-}
-
-// Problem is the problem (RFC 9457) the other services answered an error with, or nil. It is never
-// printed when the error is.
-func (e *Error) Problem() *Problem {
-	if e.problem == nil {
-		return nil
-	}
-	return e.problem()
 }
 
 // Format prints the error's message for every verb, and %#v as GoString does, so no verb reaches

@@ -67,36 +67,22 @@ func describeAnswer(body []byte) string {
 	return "something that is not a FHIR resource"
 }
 
-// readErrorBody reads an error body as the SDK does: an OperationOutcome under the FHIR base, a
-// problem elsewhere.
-func readErrorBody(body []byte) (*fhir.OperationOutcome, *Problem) {
+// readErrorBody reads an error body as the SDK does: the OperationOutcome the FHIR base answers an
+// error with, or nil. Every service is on the FHIR base, so any other body is one no service sends
+// (an address no service serves, say), and the error keeps its status, message and request id
+// without one.
+func readErrorBody(body []byte) *fhir.OperationOutcome {
 	if body == nil {
-		return nil, nil
+		return nil
 	}
-	if t, _ := resourceType(body); t == "OperationOutcome" {
-		var outcome fhir.OperationOutcome
-		if json.Unmarshal(body, &outcome) == nil {
-			return &outcome, nil
-		}
-		return nil, nil
+	if t, _ := resourceType(body); t != "OperationOutcome" {
+		return nil
 	}
-	var probe struct {
-		Type   json.RawMessage `json:"type"`
-		Status json.RawMessage `json:"status"`
+	var outcome fhir.OperationOutcome
+	if json.Unmarshal(body, &outcome) != nil {
+		return nil
 	}
-	if json.Unmarshal(body, &probe) != nil {
-		return nil, nil
-	}
-	var kind string
-	var status int
-	if json.Unmarshal(probe.Type, &kind) != nil || json.Unmarshal(probe.Status, &status) != nil {
-		return nil, nil
-	}
-	var problem Problem
-	if json.Unmarshal(body, &problem) != nil {
-		return nil, nil
-	}
-	return nil, &problem
+	return &outcome
 }
 
 // retryAfterSeconds reads a Retry-After header that holds a number of seconds. An HTTP date is not read.
@@ -186,26 +172,20 @@ var forbiddenReasons = map[string]string{
 const forbiddenGeneral = "the API key was accepted, and its organization may not make this request"
 
 // apiErrorCode is the API's own code for why it refused a request, when it names one: the
-// api-error coding of an OperationOutcome's first issue that has one, or a problem's code. A
-// code, never words, so it is safe to log.
-func apiErrorCode(outcome *fhir.OperationOutcome, problem *Problem) string {
-	return codeIn(outcome, problem, apiErrorSystem)
+// api-error coding of an OperationOutcome's first issue that has one. A code, never words, so it
+// is safe to log.
+func apiErrorCode(outcome *fhir.OperationOutcome) string {
+	return codeIn(outcome, apiErrorSystem)
 }
 
 // refusalCode is the API's own code for why it refused a request with any other 4xx, when it names
-// one: an api-error or sandbox-error coding of an OperationOutcome's first issue that has one, or a
-// problem's code. A code, never words, so it is safe to log.
-func refusalCode(outcome *fhir.OperationOutcome, problem *Problem) string {
-	return codeIn(outcome, problem, apiErrorSystem, sandboxErrorSystem)
+// one: an api-error or sandbox-error coding of an OperationOutcome's first issue that has one. A
+// code, never words, so it is safe to log.
+func refusalCode(outcome *fhir.OperationOutcome) string {
+	return codeIn(outcome, apiErrorSystem, sandboxErrorSystem)
 }
 
-func codeIn(outcome *fhir.OperationOutcome, problem *Problem, systems ...string) string {
-	if problem != nil {
-		if problem.Code != nil {
-			return *problem.Code
-		}
-		return ""
-	}
+func codeIn(outcome *fhir.OperationOutcome, systems ...string) string {
 	if outcome == nil {
 		return ""
 	}
@@ -255,12 +235,8 @@ func judge(name string, status int, body []byte, c judgeContext) *Error {
 			RequestID: c.requestID, CorrelationID: c.correlationID, message: message,
 		}
 		if status >= 400 {
-			outcome, problem := readErrorBody(body)
-			if outcome != nil {
+			if outcome := readErrorBody(body); outcome != nil {
 				e.outcome = func() *fhir.OperationOutcome { return outcome }
-			}
-			if problem != nil {
-				e.problem = func() *Problem { return problem }
 			}
 		}
 		return e

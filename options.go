@@ -9,7 +9,7 @@ import (
 // NewClient and to each method; one given to a call applies to that call only.
 //
 //	client, err := haau3.NewClient(haau3.WithTimeout(20 * time.Second))
-//	slots, err := client.SearchSlots(ctx, params, haau3.WithMaxRetries(0))
+//	slots, err := client.SearchSlot(ctx, params, haau3.WithMaxRetries(0))
 //
 // WithBaseURL, WithHTTPClient, WithAppInfo, WithEnvironmentSandbox and WithEnvironmentProduction are
 // for NewClient only, and WithCorrelationID and

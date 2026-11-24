@@ -2,7 +2,7 @@
 // HL7's FHIR R4 schema, hl7/fhir.schema.json.zip:
 //
 //   - fhir/r4_gen.go: every FHIR R4 type, from HL7's own schema;
-//   - types_gen.go: the spec's other components (Scheduling's records and answers, Problem);
+//   - types_gen.go: the spec's own components outside FHIR, when it declares any;
 //   - operations_gen.go: one method per operation, named by its operationId in Go's style, its
 //     params struct, and its entry for a batch;
 //   - operations_gen_test.go: each operation called with the spec's own example;

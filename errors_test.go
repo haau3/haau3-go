@@ -12,13 +12,7 @@ import (
 	"github.com/haau3/haau3-go/fhir"
 )
 
-var (
-	outcome = map[string]any{"resourceType": "OperationOutcome", "issue": []any{map[string]any{"severity": "error", "code": "not-found"}}}
-	problem = map[string]any{
-		"type": "https://docs.haau3.com/errors#invalid-request", "title": "Invalid request", "status": 400,
-		"detail": "d", "instance": "urn:uuid:x",
-	}
-)
+var outcome = map[string]any{"resourceType": "OperationOutcome", "issue": []any{map[string]any{"severity": "error", "code": "not-found"}}}
 
 func readPlan(t *testing.T, replies ...reply) error {
 	t.Helper()
@@ -58,7 +52,7 @@ func TestA401IsKindAuthAndA403KindForbidden(t *testing.T) {
 func TestAnother4xxIsARefusalCarryingTheOutcome(t *testing.T) {
 	for _, status := range []int{400, 404, 410, 413, 422} {
 		e := asError(t, readPlan(t, fhirReply(status, outcome)))
-		if e.Kind != KindRefused || e.Status != status || e.Attempts != 1 || e.Outcome() == nil || e.Problem() != nil {
+		if e.Kind != KindRefused || e.Status != status || e.Attempts != 1 || e.Outcome() == nil {
 			t.Errorf("%d: %#v", status, e)
 		}
 		if want := fmt.Sprintf("GET /v1/fhir/r4/InsurancePlan/{id} was refused (%d).", status); e.Error() != want || strings.Contains(e.Error(), "secret-id") {
@@ -67,14 +61,25 @@ func TestAnother4xxIsARefusalCarryingTheOutcome(t *testing.T) {
 	}
 }
 
-func TestSchedulingErrorsCarryAProblem(t *testing.T) {
-	_, err := testClient(t, record(plainReply(400, problem))).SearchSlots(context.Background(), SearchSlotsParams{State: new("ZZ")})
+// An address no service serves answers with a problem, a body no service sends: the error is the one
+// for its status, with its status, message and request id, and carries no body.
+func TestAnAnswerOffTheFHIRBaseIsTheErrorForItsStatusWithNoBody(t *testing.T) {
+	notFound := map[string]any{"type": "about:blank", "title": "Not Found", "status": 404, "detail": "d"}
+	err := testClient(t, record(plainReply(404, notFound))).Get(context.Background(), "/v1/nowhere", CallParams{}, nil)
 	e := asError(t, err)
-	if e.Kind != KindRefused || e.Problem() == nil || e.Problem().Detail != "d" || e.Outcome() != nil {
+	if e.Kind != KindRefused || e.Status != 404 || e.RequestID != requestID || e.Outcome() != nil || e.Code != "" {
 		t.Errorf("%#v", e)
 	}
-	if e.Error() != "GET /v1/scheduling/slots was refused (400)." {
+	if e.Error() != "GET /v1/nowhere was refused (404)." {
 		t.Errorf("%q", e.Error())
+	}
+}
+
+// Control: the same answer as an OperationOutcome is carried.
+func TestAnOperationOutcomeOffTheFHIRBaseIsStillCarried(t *testing.T) {
+	err := testClient(t, record(fhirReply(404, outcome))).Get(context.Background(), "/v1/nowhere", CallParams{}, nil)
+	if e := asError(t, err); e.Kind != KindRefused || e.Outcome() == nil {
+		t.Errorf("%#v", e)
 	}
 }
 
@@ -136,31 +141,15 @@ func TestAnAnswerThatDoesNotReadAsItsTypeSaysWhereNeverAValue(t *testing.T) {
 	}
 }
 
-func TestASchedulingTimeIsATimeAndAMalformedOneIsUnreadable(t *testing.T) {
-	slot := func(start string) map[string]any {
-		return map[string]any{"slots": []any{map[string]any{"id": "s", "publisher": "p", "scheduleId": "x", "status": "free",
-			"start": start, "end": "2026-10-18T21:30:00.000Z"}}, "total": 1}
-	}
-	found, err := testClient(t, record(plainReply(200, slot("2026-10-18T17:00:00.000-04:00")))).SearchSlots(context.Background(), SearchSlotsParams{})
-	if err != nil || !found.Slots[0].Start.Equal(time.Date(2026, 10, 18, 21, 0, 0, 0, time.UTC)) {
-		t.Fatalf("%v %v", found, err)
-	}
-	_, err = testClient(t, record(plainReply(200, slot("PRIVATE-VALUE")))).SearchSlots(context.Background(), SearchSlotsParams{})
-	e := asError(t, err)
-	if e.Reason != ReasonUnreadable || e.Error() != "GET /v1/scheduling/slots answered a body that could not be read: a time is not RFC 3339." {
-		t.Errorf("%q", e.Error())
-	}
-}
-
 func TestAnEmptySearchIsAnAnswerNotAnError(t *testing.T) {
 	c := testClient(t, record(fhirReply(200, map[string]any{"resourceType": "Bundle", "type": "searchset", "total": 0, "entry": []any{}})))
 	b, err := c.SearchInsurancePlan(context.Background(), SearchInsurancePlanParams{CoverageAreaState: new("NC")})
 	if err != nil || b == nil || *b.Total != 0 {
 		t.Errorf("%v %v", b, err)
 	}
-	c = testClient(t, record(plainReply(200, map[string]any{"slots": []any{}, "total": 0})))
-	s, err := c.SearchSlots(context.Background(), SearchSlotsParams{})
-	if err != nil || s.Total != 0 || len(s.Slots) != 0 {
+	c = testClient(t, record(fhirReply(200, map[string]any{"resourceType": "Bundle", "type": "searchset", "entry": []any{}})))
+	s, err := c.SearchSlot(context.Background(), SearchSlotParams{LocationAddressState: new("MA")})
+	if err != nil || s == nil || len(s.Entry) != 0 {
 		t.Errorf("%v %v", s, err)
 	}
 }
@@ -199,9 +188,8 @@ func TestSentinelsMatchTheirKindOnly(t *testing.T) {
 	}
 }
 
-// A 403 names its reason when the API names it by a code of its own: in an OperationOutcome's
-// api-error coding on a FHIR base, or in a problem's code elsewhere. The message says it in words
-// chosen by the code, never the body's.
+// A 403 names its reason when the API names it by a code of its own, in an OperationOutcome's
+// api-error coding. The message says it in words chosen by the code, never the body's.
 
 const apiError = "https://haau3.com/fhir/CodeSystem/api-error"
 
@@ -241,17 +229,18 @@ func TestA403NamesALiveKeyInTheSandbox(t *testing.T) {
 	}
 }
 
-func TestA403ReadsItsCodeFromAProblemOffTheFHIRBases(t *testing.T) {
+// A problem is a body no service sends, so a 403 reads no code from one, and says the general reason.
+func TestA403ReadsNoCodeFromAProblemABodyNoServiceSends(t *testing.T) {
 	forbidden := map[string]any{
 		"type": "https://docs.haau3.com/errors#forbidden", "title": "Forbidden", "status": 403,
 		"detail": "d", "instance": "urn:uuid:x", "code": "test-key-outside-sandbox",
 	}
-	_, err := testClient(t, record(plainReply(403, forbidden))).SearchSlots(context.Background(), SearchSlotsParams{State: new("MA")})
+	err := testClient(t, record(plainReply(403, forbidden))).Get(context.Background(), "/v1/nowhere", CallParams{}, nil)
 	e := asError(t, err)
-	if e.Code != "test-key-outside-sandbox" || e.Problem() == nil {
+	if e.Kind != KindForbidden || e.Code != "" || e.Outcome() != nil {
 		t.Errorf("%#v", e)
 	}
-	if e.Error() != "GET /v1/scheduling/slots was refused: this is a test key, which works only in the Sandbox (403)." {
+	if e.Error() != "GET /v1/nowhere was refused: the API key was accepted, and its organization may not make this request (403)." {
 		t.Errorf("%q", e.Error())
 	}
 }
@@ -306,7 +295,7 @@ func TestA403HasNoCodeWhenTheAPINamesNone(t *testing.T) {
 	}
 }
 
-// A refusal's code: the Sandbox's not-the-example, from the FHIR base and from a problem.
+// A refusal's code: the Sandbox's not-the-example, from an OperationOutcome.
 func TestARefusalCarriesTheSandboxsNotTheExample(t *testing.T) {
 	e := asError(t, readPlan(t, fhirReply(400, coded("not-the-example", "https://haau3.com/fhir/CodeSystem/sandbox-error"))))
 	if e.Kind != KindRefused || e.Code != "not-the-example" {
@@ -315,12 +304,16 @@ func TestARefusalCarriesTheSandboxsNotTheExample(t *testing.T) {
 	if got, _ := json.Marshal(e); !strings.Contains(string(got), `"code":"not-the-example"`) {
 		t.Errorf("%s", got)
 	}
+}
+
+// A problem is a body no service sends, so a refusal reads no code from one.
+func TestARefusalReadsNoCodeFromAProblemABodyNoServiceSends(t *testing.T) {
 	problem := map[string]any{
 		"type": "https://docs.haau3.com/errors#invalid-request", "title": "Invalid request", "status": 400,
 		"detail": "d", "instance": "urn:uuid:x", "code": "not-the-example",
 	}
-	_, err := testClient(t, record(plainReply(400, problem))).SearchSlots(context.Background(), SearchSlotsParams{State: new("MA")})
-	if e := asError(t, err); e.Kind != KindRefused || e.Code != "not-the-example" {
+	err := testClient(t, record(plainReply(400, problem))).Get(context.Background(), "/v1/nowhere", CallParams{}, nil)
+	if e := asError(t, err); e.Kind != KindRefused || e.Code != "" || e.Outcome() != nil {
 		t.Errorf("%#v", e)
 	}
 }

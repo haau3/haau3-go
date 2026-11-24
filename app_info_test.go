@@ -65,7 +65,7 @@ func TestTheAppIsSentOnEveryAttemptAndByRequestAndBatch(t *testing.T) {
 	if _, err := c.ReadInsurancePlan(ctx, "H1"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := c.Request(ctx, RawRequest{Method: "GET", Path: "/v1/scheduling/publishers"}); err != nil {
+	if _, err := c.Request(ctx, RawRequest{Method: "GET", Path: "/v1/fhir/r4/metadata"}); err != nil {
 		t.Fatal(err)
 	}
 	if err := c.Batch(ctx, []Entry{Calls.ReadInsurancePlan("H1")}); err != nil {

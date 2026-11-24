@@ -248,8 +248,8 @@ func emitOperations(s *spec) string {
 	return b.String()
 }
 
-// emitTypes writes the spec's own components: Scheduling's records and answers, and the problem
-// the other services answer an error with.
+// emitTypes writes the spec's own components outside FHIR. A spec that declares none gives a file
+// of its header alone.
 func emitTypes(s *spec) (string, error) {
 	var b strings.Builder
 	b.WriteString(generatedHeader + "package haau3\n\n")
@@ -320,7 +320,7 @@ func (s *spec) dtoType(owner, key string, prop object, at pointer, nested *[]fun
 		return refName(ref), nil
 	}
 	if kinds := asList(prop["type"]); kinds != nil {
-		return "any", nil // a value of more than one JSON type: ProblemIssue's path, of names and indexes
+		return "any", nil // a value of more than one JSON type
 	}
 	switch prop["type"] {
 	case "string":

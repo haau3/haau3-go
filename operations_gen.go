@@ -5,13 +5,12 @@ package haau3
 import (
 	"context"
 	"regexp"
-	"time"
 
 	"github.com/haau3/haau3-go/fhir"
 )
 
 // SpecVersion is the version of the API's spec this release was generated from.
-const SpecVersion = "1.0.0-preview.36"
+const SpecVersion = "1.0.0-preview.40"
 
 // Each operation of the spec: its method, its path and what its answer may be.
 var (
@@ -23,9 +22,6 @@ var (
 	opFHIRBatch                     = operation{id: "fhirBatch", method: "POST", path: "/v1/fhir/r4", expects: []string{"Bundle"}, bodyTypes: []string{"Bundle"}}
 	opFHIRMetadata                  = operation{id: "fhirMetadata", method: "GET", path: "/v1/fhir/r4/metadata", expects: []string{"CapabilityStatement", "TerminologyCapabilities"}}
 	opListInsurancePlanCounties     = operation{id: "listInsurancePlanCounties", method: "GET", path: "/v1/fhir/r4/InsurancePlan/$counties", expects: []string{"Parameters"}}
-	opListPublishers                = operation{id: "listPublishers", method: "GET", path: "/v1/scheduling/publishers"}
-	opListServiceTypes              = operation{id: "listServiceTypes", method: "GET", path: "/v1/scheduling/service-types"}
-	opListSpecialties               = operation{id: "listSpecialties", method: "GET", path: "/v1/scheduling/specialties"}
 	opProcessMessage                = operation{id: "processMessage", method: "POST", path: "/v1/fhir/r4/$process-message", expects: []string{"Bundle"}, bodyTypes: []string{"Bundle"}, headers: []declaredHeader{{wire: "Payer-Authorization", option: "WithPayerAuthorization", maxLength: 4096, pattern: regexp.MustCompile("^[Bb][Ee][Aa][Rr][Ee][Rr] +[A-Za-z0-9\\-._~+/]+=*$")}}}
 	opReadEndpoint                  = operation{id: "readEndpoint", method: "GET", path: "/v1/fhir/r4/Endpoint/{id}", expects: []string{"Endpoint"}}
 	opReadHealthcareService         = operation{id: "readHealthcareService", method: "GET", path: "/v1/fhir/r4/HealthcareService/{id}", expects: []string{"HealthcareService"}}
@@ -36,6 +32,8 @@ var (
 	opReadPractitioner              = operation{id: "readPractitioner", method: "GET", path: "/v1/fhir/r4/Practitioner/{id}", expects: []string{"Practitioner"}}
 	opReadPractitionerRole          = operation{id: "readPractitionerRole", method: "GET", path: "/v1/fhir/r4/PractitionerRole/{id}", expects: []string{"PractitionerRole"}}
 	opReadQuestionnaire             = operation{id: "readQuestionnaire", method: "GET", path: "/v1/fhir/r4/Questionnaire/{id}", expects: []string{"Questionnaire"}}
+	opReadSchedule                  = operation{id: "readSchedule", method: "GET", path: "/v1/fhir/r4/Schedule/{id}", expects: []string{"Schedule"}}
+	opReadSlot                      = operation{id: "readSlot", method: "GET", path: "/v1/fhir/r4/Slot/{id}", expects: []string{"Slot"}}
 	opReconcileMedications          = operation{id: "reconcileMedications", method: "POST", path: "/v1/fhir/r4/$reconcile-medications", expects: []string{"Bundle"}, bodyTypes: []string{"Bundle", "Parameters"}}
 	opSandboxMetadata               = operation{id: "sandboxMetadata", method: "GET", path: "/v1/sandbox/fhir/r4/metadata", expects: []string{"CapabilityStatement"}}
 	opSandboxProcessMessage         = operation{id: "sandboxProcessMessage", method: "POST", path: "/v1/sandbox/fhir/r4/$process-message", expects: []string{"Bundle"}, bodyTypes: []string{"Bundle"}, headers: []declaredHeader{{wire: "Payer-Authorization", option: "WithPayerAuthorization", maxLength: 4096, pattern: regexp.MustCompile("^[Bb][Ee][Aa][Rr][Ee][Rr] +[A-Za-z0-9\\-._~+/]+=*$")}}}
@@ -47,9 +45,9 @@ var (
 	opSearchOrganizationAffiliation = operation{id: "searchOrganizationAffiliation", method: "GET", path: "/v1/fhir/r4/OrganizationAffiliation", expects: []string{"Bundle"}}
 	opSearchPractitioner            = operation{id: "searchPractitioner", method: "GET", path: "/v1/fhir/r4/Practitioner", expects: []string{"Bundle"}}
 	opSearchPractitionerRole        = operation{id: "searchPractitionerRole", method: "GET", path: "/v1/fhir/r4/PractitionerRole", expects: []string{"Bundle"}}
-	opSearchProviderLocations       = operation{id: "searchProviderLocations", method: "GET", path: "/v1/scheduling/provider-locations"}
 	opSearchQuestionnaire           = operation{id: "searchQuestionnaire", method: "GET", path: "/v1/fhir/r4/Questionnaire", expects: []string{"Bundle"}}
-	opSearchSlots                   = operation{id: "searchSlots", method: "GET", path: "/v1/scheduling/slots"}
+	opSearchSchedule                = operation{id: "searchSchedule", method: "GET", path: "/v1/fhir/r4/Schedule", expects: []string{"Bundle"}}
+	opSearchSlot                    = operation{id: "searchSlot", method: "GET", path: "/v1/fhir/r4/Slot", expects: []string{"Bundle"}}
 	opStructureDosage               = operation{id: "structureDosage", method: "POST", path: "/v1/fhir/r4/$structure-dosage", expects: []string{"Parameters"}, bodyTypes: []string{"Parameters"}}
 	opValueSetExpand                = operation{id: "valueSetExpand", method: "GET", path: "/v1/fhir/r4/ValueSet/$expand", expects: []string{"ValueSet"}}
 	opValueSetExpandPost            = operation{id: "valueSetExpandPost", method: "POST", path: "/v1/fhir/r4/ValueSet/$expand", expects: []string{"ValueSet"}, bodyTypes: []string{"Parameters"}}
@@ -178,32 +176,6 @@ func (p ListInsurancePlanCountiesParams) query() (query, error) {
 	if err := q.requiredString("state", p.State); err != nil {
 		return nil, err
 	}
-	return q, nil
-}
-
-// ListServiceTypesParams holds ListServiceTypes's query parameters. A nil field is not sent.
-type ListServiceTypesParams struct {
-	// IncludePast is `includePast`. Also count slots that started before now. Defaults to `false`, so
-	// the counts cover the slots a search with no `startAfter` returns.
-	IncludePast *bool
-}
-
-func (p ListServiceTypesParams) query() (query, error) {
-	var q query
-	q.bool("includePast", p.IncludePast)
-	return q, nil
-}
-
-// ListSpecialtiesParams holds ListSpecialties's query parameters. A nil field is not sent.
-type ListSpecialtiesParams struct {
-	// IncludePast is `includePast`. Also count slots that started before now. Defaults to `false`, so
-	// the counts cover the slots a search with no `startAfter` returns.
-	IncludePast *bool
-}
-
-func (p ListSpecialtiesParams) query() (query, error) {
-	var q query
-	q.bool("includePast", p.IncludePast)
 	return q, nil
 }
 
@@ -841,96 +813,6 @@ func (p SearchPractitionerRoleParams) query() (query, error) {
 	return q, nil
 }
 
-// SearchProviderLocationsParams holds SearchProviderLocations's query parameters. A nil field is not sent.
-type SearchProviderLocationsParams struct {
-	// Status is `status`. Slot availability state to return. Defaults to `free`. One of: free, busy,
-	// busy-unavailable, busy-tentative.
-	Status *string
-
-	// Publisher is `publisher`. Filter to a single publisher (source) by slug, such as `zocdoc` or
-	// `defacto`. See `GET /v1/scheduling/publishers` for the available slugs.
-	Publisher *string
-
-	// ServiceTypeCode is `serviceTypeCode`. Filter by service type code (as published by the source).
-	// A slot matches when any of its `serviceTypes` carries the code. A comma-separated list (up to
-	// 100) matches a slot carrying any of them.
-	ServiceTypeCode *string
-
-	// NPI is `npi`. Filter by the provider's National Provider Identifier: a clinician's, or an
-	// organization's when a healthcare service is the provider. Ten digits; a comma-separated list (up
-	// to 100) matches a slot whose provider carries any of them. Matched as the publisher sent it, in
-	// either NPI identifier system, across every publisher.
-	NPI *string
-
-	// Specialty is `specialty`. Filter by specialty: a slot matches when its provider's `specialties`
-	// or its schedule's `specialties` carry the code. Send `code` to match it in any code system, or
-	// `system|code` to match it in that system only. Codes are each publisher's own and are not
-	// translated between code systems, so one code finds the publishers that use it; `GET
-	// /v1/scheduling/specialties` lists them. A specialty sent as text only cannot be matched. A
-	// comma-separated list (up to 100) matches any of them.
-	Specialty *string
-
-	// AppointmentType is `appointmentType`. Filter by appointment type.
-	AppointmentType *string
-
-	// AcceptingPatients is `acceptingPatients`. Filter to slots accepting patients of this kind (HL7
-	// `accepting-patients` CodeSystem: `newpt` | `existptonly` | `existptfam`). Slots marked `nopt`
-	// (not accepting patients) are never served, so `nopt` is not a valid filter value. Lenient: a
-	// slot that does not declare an accepting-patients code matches any value (absence never hides a
-	// slot); a slot that declares one must equal the requested value. One of: newpt, existptonly,
-	// existptfam.
-	AcceptingPatients *string
-
-	// IsVirtual is `isVirtual`. Filter to virtual (`true`) or in-person (`false`) slots.
-	IsVirtual *bool
-
-	// City is `city`. Filter by the location's city.
-	City *string
-
-	// State is `state`. Filter by the location's state.
-	State *string
-
-	// StartAfter is `startAfter`. Only slots starting at or after this instant: ISO 8601 with seconds
-	// and an offset, such as `2026-07-06T13:00:00-04:00` or `2026-07-06T17:00:00Z`. A value without
-	// seconds is refused. When absent, slots start from now unless `includePast=true`.
-	StartAfter *time.Time
-
-	// StartBefore is `startBefore`. Only slots starting at or before this instant: ISO 8601 with
-	// seconds and an offset, such as `2026-07-06T13:00:00-04:00` or `2026-07-06T17:00:00Z`. A value
-	// without seconds is refused.
-	StartBefore *time.Time
-
-	// IncludePast is `includePast`. Include slots that started before now. Defaults to `false`: with
-	// no `startAfter`, results start from now. An explicit `startAfter` applies as given either way.
-	IncludePast *bool
-
-	// Limit is `limit`. Page size: the number of provider locations, from 1 to 100. Defaults to 25.
-	Limit *int
-
-	// Offset is `offset`. Number of provider locations to skip for pagination. Defaults to 0.
-	Offset *int
-}
-
-func (p SearchProviderLocationsParams) query() (query, error) {
-	var q query
-	q.string("status", p.Status)
-	q.string("publisher", p.Publisher)
-	q.string("serviceTypeCode", p.ServiceTypeCode)
-	q.string("npi", p.NPI)
-	q.string("specialty", p.Specialty)
-	q.string("appointmentType", p.AppointmentType)
-	q.string("acceptingPatients", p.AcceptingPatients)
-	q.bool("isVirtual", p.IsVirtual)
-	q.string("city", p.City)
-	q.string("state", p.State)
-	q.time("startAfter", p.StartAfter)
-	q.time("startBefore", p.StartBefore)
-	q.bool("includePast", p.IncludePast)
-	q.int("limit", p.Limit)
-	q.int("offset", p.Offset)
-	return q, nil
-}
-
 // SearchQuestionnaireParams holds SearchQuestionnaire's query parameters. A nil field is not sent.
 type SearchQuestionnaireParams struct {
 	// URL is `url`. Exact match on the canonical URL, for example `http://loinc.org/q/44249-1`. The
@@ -953,99 +835,227 @@ func (p SearchQuestionnaireParams) query() (query, error) {
 	return q, nil
 }
 
-// SearchSlotsParams holds SearchSlots's query parameters. A nil field is not sent.
-type SearchSlotsParams struct {
-	// Status is `status`. Slot availability state to return. Defaults to `free`. One of: free, busy,
-	// busy-unavailable, busy-tentative.
-	Status *string
+// SearchScheduleParams holds SearchSchedule's query parameters. A nil field is not sent.
+type SearchScheduleParams struct {
+	// ServiceType is `service-type`. The Schedule's service type, its own `serviceType`. Any of FHIR's
+	// token forms: `code`, `system|code`, `|code` (a code with no system) or `system|` (any code in
+	// that system), several separated by commas for any of them.
+	ServiceType *string
 
-	// Publisher is `publisher`. Filter to a single publisher (source) by slug, such as `zocdoc` or
-	// `defacto`. See `GET /v1/scheduling/publishers` for the available slugs.
-	Publisher *string
-
-	// ServiceTypeCode is `serviceTypeCode`. Filter by service type code (as published by the source).
-	// A slot matches when any of its `serviceTypes` carries the code. A comma-separated list (up to
-	// 100) matches a slot carrying any of them.
-	ServiceTypeCode *string
-
-	// NPI is `npi`. Filter by the provider's National Provider Identifier: a clinician's, or an
-	// organization's when a healthcare service is the provider. Ten digits; a comma-separated list (up
-	// to 100) matches a slot whose provider carries any of them. Matched as the publisher sent it, in
-	// either NPI identifier system, across every publisher.
-	NPI *string
-
-	// Specialty is `specialty`. Filter by specialty: a slot matches when its provider's `specialties`
-	// or its schedule's `specialties` carry the code. Send `code` to match it in any code system, or
-	// `system|code` to match it in that system only. Codes are each publisher's own and are not
-	// translated between code systems, so one code finds the publishers that use it; `GET
-	// /v1/scheduling/specialties` lists them. A specialty sent as text only cannot be matched. A
-	// comma-separated list (up to 100) matches any of them.
+	// Specialty is `specialty`. The Schedule's own specialty, FHIR's Schedule.specialty. For a
+	// specialty the SMART Scheduling Links `schedule-specialty` extension or the provider states, use
+	// `provider-specialty`. Any of FHIR's token forms: `code`, `system|code`, `|code` (a code with no
+	// system) or `system|` (any code in that system), several separated by commas for any of them.
 	Specialty *string
 
-	// AppointmentType is `appointmentType`. Filter by appointment type.
-	AppointmentType *string
+	// ProviderSpecialty is `provider-specialty`. A specialty of the provider, as the Schedule states
+	// it (its own `specialty` or the SMART Scheduling Links `schedule-specialty` extension) or as the
+	// provider itself does (a PractitionerRole or HealthcareService the Schedule names). Any of FHIR's
+	// token forms: `code`, `system|code`, `|code` (a code with no system) or `system|` (any code in
+	// that system), several separated by commas for any of them.
+	ProviderSpecialty *string
 
-	// AcceptingPatients is `acceptingPatients`. Filter to slots accepting patients of this kind (HL7
-	// `accepting-patients` CodeSystem: `newpt` | `existptonly` | `existptfam`). Slots marked `nopt`
-	// (not accepting patients) are never served, so `nopt` is not a valid filter value. Lenient: a
-	// slot that does not declare an accepting-patients code matches any value (absence never hides a
-	// slot); a slot that declares one must equal the requested value. One of: newpt, existptonly,
-	// existptfam.
-	AcceptingPatients *string
+	// ProviderIdentifier is `provider-identifier`. An identifier, such as an NPI
+	// (`http://hl7.org/fhir/sid/us-npi|1234567890`), of the provider the Schedule names: a
+	// Practitioner, a PractitionerRole or the Practitioner behind it, or a HealthcareService,
+	// whichever the publisher used. Any of FHIR's token forms: `code`, `system|code`, `|code` (a code
+	// with no system) or `system|` (any code in that system), several separated by commas for any of
+	// them.
+	ProviderIdentifier *string
 
-	// IsVirtual is `isVirtual`. Filter to virtual (`true`) or in-person (`false`) slots.
-	IsVirtual *bool
+	// LocationAddressCity is `location-address-city`. The city of a Location the Schedule names, or of
+	// the Location of a HealthcareService it names: the start of the city's name, ignoring case and
+	// accents: `San Jose` finds San José. Several separated by commas.
+	LocationAddressCity *string
 
-	// City is `city`. Filter by the location's city.
-	City *string
+	// LocationAddressState is `location-address-state`. The state of a Location the Schedule names, or
+	// of the Location of a HealthcareService it names, matched as `location-address-city` is.
+	LocationAddressState *string
 
-	// State is `state`. Filter by the location's state.
-	State *string
+	// LocationPhysicalType is `location-physical-type`. The physicalType of a Location the Schedule
+	// names, or of the Location of a HealthcareService it names: `vi` for a virtual one, from
+	// `http://terminology.hl7.org/CodeSystem/location-physical-type`. Any of FHIR's token forms:
+	// `code`, `system|code`, `|code` (a code with no system) or `system|` (any code in that system),
+	// several separated by commas for any of them.
+	LocationPhysicalType *string
 
-	// StartAfter is `startAfter`. Only slots starting at or after this instant: ISO 8601 with seconds
-	// and an offset, such as `2026-07-06T13:00:00-04:00` or `2026-07-06T17:00:00Z`. A value without
-	// seconds is refused. When absent, slots start from now unless `includePast=true`.
-	StartAfter *time.Time
+	// Source is `_source`. The Schedule's `meta.source`: where the publisher published it, its feed's
+	// address followed by `Schedule/` and the publisher's own id. Several separated by commas.
+	Source *string
 
-	// StartBefore is `startBefore`. Only slots starting at or before this instant: ISO 8601 with
-	// seconds and an offset, such as `2026-07-06T13:00:00-04:00` or `2026-07-06T17:00:00Z`. A value
-	// without seconds is refused.
-	StartBefore *time.Time
+	// SourceBelow is `_source:below`. The start of the Schedule's `meta.source`: a feed's address, for
+	// every Schedule it published. Several separated by commas.
+	SourceBelow *string
 
-	// IncludePast is `includePast`. Include slots that started before now. Defaults to `false`: with
-	// no `startAfter`, results start from now. An explicit `startAfter` applies as given either way.
-	IncludePast *bool
+	// Include is `_include`. `Schedule:actor` adds each Schedule's Location, PractitionerRole,
+	// Practitioner or HealthcareService. What those reach comes with `_include:iterate`. One of:
+	// Schedule:actor.
+	Include []string
 
-	// ProviderLocationKey is `providerLocationKey`. Opaque key of one provider location from `GET
-	// /v1/scheduling/provider-locations`. When set, returns exactly that provider location's slots.
-	// Treat the value as opaque; do not parse it.
-	ProviderLocationKey *string
+	// IncludeIterate is `_include:iterate`. `PractitionerRole:practitioner` adds the Practitioner
+	// behind each included role, and `HealthcareService:location` the Location of each included
+	// HealthcareService. Each needs `_include=Schedule:actor`, which may be sent here too. One of:
+	// Schedule:actor, PractitionerRole:practitioner, HealthcareService:location.
+	IncludeIterate []string
 
-	// Limit is `limit`. Page size, from 1 to 100. Defaults to 25.
-	Limit *int
+	// Count is `_count`. Page size, 1 to 100, 25 by default. A larger value is refused rather than
+	// quietly reduced.
+	Count *int
 
-	// Offset is `offset`. Number of slots to skip for pagination. Defaults to 0.
-	Offset *int
+	// Page is `page`. The next page's cursor, from the `next` link of the page before. It is opaque
+	// and belongs to the one search; follow the link rather than building one.
+	Page *string
 }
 
-func (p SearchSlotsParams) query() (query, error) {
+func (p SearchScheduleParams) query() (query, error) {
+	var q query
+	q.string("service-type", p.ServiceType)
+	q.string("specialty", p.Specialty)
+	q.string("provider-specialty", p.ProviderSpecialty)
+	q.string("provider-identifier", p.ProviderIdentifier)
+	q.string("location-address-city", p.LocationAddressCity)
+	q.string("location-address-state", p.LocationAddressState)
+	q.string("location-physical-type", p.LocationPhysicalType)
+	q.string("_source", p.Source)
+	q.string("_source:below", p.SourceBelow)
+	q.strings("_include", p.Include)
+	q.strings("_include:iterate", p.IncludeIterate)
+	q.int("_count", p.Count)
+	q.string("page", p.Page)
+	return q, nil
+}
+
+// SearchSlotParams holds SearchSlot's query parameters. A nil field is not sent.
+type SearchSlotParams struct {
+	// Status is `status`. The Slot's status: `free`, `busy`, `busy-unavailable`, `busy-tentative` or
+	// `entered-in-error`, several separated by commas. With no `status`, a search returns `free`
+	// Slots, and the `self` link shows it.
+	Status *string
+
+	// Start is `start`. When the Slot starts, with a prefix `ge`, `gt`, `le` or `lt`, or none for that
+	// day, hour or minute: `start=ge2026-12-01&start=lt2026-12-08` for one week. Any precision from a
+	// year to a second; a value with no time is a day in UTC, and a time needs its offset (`Z` or
+	// `-05:00`). Send it twice for a window. With no `start`, a search returns Slots starting from
+	// now, and the `self` link shows the moment.
+	Start []string
+
+	// AppointmentType is `appointment-type`. The Slot's appointment type. Any of FHIR's token forms:
+	// `code`, `system|code`, `|code` (a code with no system) or `system|` (any code in that system),
+	// several separated by commas for any of them.
+	AppointmentType *string
+
+	// Schedule is `schedule`. The Slot's Schedule, as `Schedule/{id}`, its id alone, or its address on
+	// this base; several separated by commas. Chained once, as `schedule.service-type`.
+	Schedule *string
+
+	// ServiceType is `service-type`. The Slot's own service type, FHIR's Slot.serviceType. A Slot that
+	// names none matches no value: find the Slots of a Schedule offering a service with
+	// `schedule.service-type`. Any of FHIR's token forms: `code`, `system|code`, `|code` (a code with
+	// no system) or `system|` (any code in that system), several separated by commas for any of them.
+	ServiceType *string
+
+	// ScheduleServiceType is `schedule.service-type`. The service type of the Slot's Schedule, FHIR's
+	// chained `schedule` and the Schedule's `service-type`: every Slot of a Schedule offering it,
+	// whether or not the Slot names a service type of its own. Any of FHIR's token forms: `code`,
+	// `system|code`, `|code` (a code with no system) or `system|` (any code in that system), several
+	// separated by commas for any of them.
+	ScheduleServiceType *string
+
+	// Specialty is `specialty`. The Slot's own specialty, FHIR's Slot.specialty. For a specialty its
+	// Schedule or its provider states, use `provider-specialty`. Any of FHIR's token forms: `code`,
+	// `system|code`, `|code` (a code with no system) or `system|` (any code in that system), several
+	// separated by commas for any of them.
+	Specialty *string
+
+	// ProviderSpecialty is `provider-specialty`. A specialty of the provider, as the Slot states it,
+	// as its Schedule does (its own `specialty` or the SMART Scheduling Links `schedule-specialty`
+	// extension), or as the provider itself does (a PractitionerRole or HealthcareService the Schedule
+	// names). Any of FHIR's token forms: `code`, `system|code`, `|code` (a code with no system) or
+	// `system|` (any code in that system), several separated by commas for any of them.
+	ProviderSpecialty *string
+
+	// ProviderIdentifier is `provider-identifier`. An identifier, such as an NPI
+	// (`http://hl7.org/fhir/sid/us-npi|1234567890`), of the provider the Slot's Schedule names: a
+	// Practitioner, a PractitionerRole or the Practitioner behind it, or a HealthcareService,
+	// whichever the publisher used. Any of FHIR's token forms: `code`, `system|code`, `|code` (a code
+	// with no system) or `system|` (any code in that system), several separated by commas for any of
+	// them.
+	ProviderIdentifier *string
+
+	// PatientType is `patient-type`. Who the Slot accepts, from the SMART Scheduling Links
+	// `patient-type` extension: `newpt`, `existptonly` and the other codes of
+	// `http://terminology.hl7.org/CodeSystem/accepting-patients`. A Slot that carries none matches no
+	// value. A Slot not accepting patients (`nopt`) is never served. Any of FHIR's token forms:
+	// `code`, `system|code`, `|code` (a code with no system) or `system|` (any code in that system),
+	// several separated by commas for any of them.
+	PatientType *string
+
+	// LocationAddressCity is `location-address-city`. The city of a Location the Slot's Schedule
+	// names, or of the Location of a HealthcareService it names: the start of the city's name,
+	// ignoring case and accents: `San Jose` finds San José. Several separated by commas.
+	LocationAddressCity *string
+
+	// LocationAddressState is `location-address-state`. The state of a Location the Slot's Schedule
+	// names, or of the Location of a HealthcareService it names, matched as `location-address-city`
+	// is.
+	LocationAddressState *string
+
+	// LocationPhysicalType is `location-physical-type`. The physicalType of a Location the Slot's
+	// Schedule names, or of the Location of a HealthcareService it names: `vi` for a virtual one, from
+	// `http://terminology.hl7.org/CodeSystem/location-physical-type`. Any of FHIR's token forms:
+	// `code`, `system|code`, `|code` (a code with no system) or `system|` (any code in that system),
+	// several separated by commas for any of them.
+	LocationPhysicalType *string
+
+	// Source is `_source`. The Slot's `meta.source`: where the publisher published it, its feed's
+	// address followed by `Slot/` and the publisher's own id. Several separated by commas.
+	Source *string
+
+	// SourceBelow is `_source:below`. The start of the Slot's `meta.source`: a feed's address, for
+	// every Slot it published. Several separated by commas.
+	SourceBelow *string
+
+	// Include is `_include`. `Slot:schedule` adds each Slot's Schedule to the Bundle. The Location and
+	// provider it names, and what they reach, come with `_include:iterate`. One of: Slot:schedule.
+	Include []string
+
+	// IncludeIterate is `_include:iterate`. `Schedule:actor` adds each included Schedule's Location,
+	// PractitionerRole, Practitioner or HealthcareService; `PractitionerRole:practitioner` the
+	// Practitioner behind each included role; `HealthcareService:location` the Location of each
+	// included HealthcareService. Each needs `_include=Slot:schedule`. One of: Slot:schedule,
+	// Schedule:actor, PractitionerRole:practitioner, HealthcareService:location.
+	IncludeIterate []string
+
+	// Count is `_count`. Page size, 1 to 100, 25 by default. A larger value is refused rather than
+	// quietly reduced.
+	Count *int
+
+	// Page is `page`. The next page's cursor, from the `next` link of the page before. It is opaque
+	// and belongs to the one search; follow the link rather than building one.
+	Page *string
+}
+
+func (p SearchSlotParams) query() (query, error) {
 	var q query
 	q.string("status", p.Status)
-	q.string("publisher", p.Publisher)
-	q.string("serviceTypeCode", p.ServiceTypeCode)
-	q.string("npi", p.NPI)
+	q.strings("start", p.Start)
+	q.string("appointment-type", p.AppointmentType)
+	q.string("schedule", p.Schedule)
+	q.string("service-type", p.ServiceType)
+	q.string("schedule.service-type", p.ScheduleServiceType)
 	q.string("specialty", p.Specialty)
-	q.string("appointmentType", p.AppointmentType)
-	q.string("acceptingPatients", p.AcceptingPatients)
-	q.bool("isVirtual", p.IsVirtual)
-	q.string("city", p.City)
-	q.string("state", p.State)
-	q.time("startAfter", p.StartAfter)
-	q.time("startBefore", p.StartBefore)
-	q.bool("includePast", p.IncludePast)
-	q.string("providerLocationKey", p.ProviderLocationKey)
-	q.int("limit", p.Limit)
-	q.int("offset", p.Offset)
+	q.string("provider-specialty", p.ProviderSpecialty)
+	q.string("provider-identifier", p.ProviderIdentifier)
+	q.string("patient-type", p.PatientType)
+	q.string("location-address-city", p.LocationAddressCity)
+	q.string("location-address-state", p.LocationAddressState)
+	q.string("location-physical-type", p.LocationPhysicalType)
+	q.string("_source", p.Source)
+	q.string("_source:below", p.SourceBelow)
+	q.strings("_include", p.Include)
+	q.strings("_include:iterate", p.IncludeIterate)
+	q.int("_count", p.Count)
+	q.string("page", p.Page)
 	return q, nil
 }
 
@@ -1290,44 +1300,6 @@ func (c *Client) ListInsurancePlanCounties(ctx context.Context, params ListInsur
 	return call(ctx, c, &opListInsurancePlanCounties, nil, query, err, nil, decodeAs[fhir.Parameters], opts)
 }
 
-// ListPublishers: List scheduling publishers.
-//
-// Returns the SMART Scheduling Links publishers (sources) the platform ingests. Requires a valid
-// API key.
-//
-// GET /v1/scheduling/publishers (listPublishers):
-// https://docs.haau3.com/api-reference/scheduling/list-scheduling-publishers
-func (c *Client) ListPublishers(ctx context.Context, opts ...Option) (*ListPublishersResponse, error) {
-	return call(ctx, c, &opListPublishers, nil, nil, nil, nil, decodeAs[ListPublishersResponse], opts)
-}
-
-// ListServiceTypes: List service types.
-//
-// Returns the distinct service types observed across served slots, each with its `system` and a
-// `count` of the slots carrying it. It is a discovery aid for the `serviceTypeCode` filter on `GET
-// /v1/scheduling/slots`. Requires a valid API key.
-//
-// GET /v1/scheduling/service-types (listServiceTypes):
-// https://docs.haau3.com/api-reference/scheduling/list-service-types
-func (c *Client) ListServiceTypes(ctx context.Context, params ListServiceTypesParams, opts ...Option) (*ListServiceTypesResponse, error) {
-	query, err := params.query()
-	return call(ctx, c, &opListServiceTypes, nil, query, err, nil, decodeAs[ListServiceTypesResponse], opts)
-}
-
-// ListSpecialties: List specialties.
-//
-// Returns the distinct specialties observed across served slots, from the provider's `specialties`
-// and the schedule's, each with its `system` and a `count` of the slots carrying it. It is a
-// discovery aid for the `specialty` filter on `GET /v1/scheduling/slots`. Codes are each
-// publisher's own. Requires a valid API key.
-//
-// GET /v1/scheduling/specialties (listSpecialties):
-// https://docs.haau3.com/api-reference/scheduling/list-specialties
-func (c *Client) ListSpecialties(ctx context.Context, params ListSpecialtiesParams, opts ...Option) (*ListSpecialtiesResponse, error) {
-	query, err := params.query()
-	return call(ctx, c, &opListSpecialties, nil, query, err, nil, decodeAs[ListSpecialtiesResponse], opts)
-}
-
 // ProcessMessage: Check what a medication costs (pharmacy benefit check).
 //
 // FHIR system-level operation `$process-message`, as the CARIN Consumer Real-Time Pharmacy Benefit
@@ -1402,6 +1374,12 @@ func (c *Client) ReadEndpoint(ctx context.Context, id string, opts ...Option) (*
 // Read one healthcare service by id, as returned by a search on this service. A pharmacy service's
 // id (`HealthcareService-pharmacy-{NPI}`) is read back from NPPES.
 //
+// A scheduling publisher's HealthcareService is read here too, by its id:
+// `HealthcareService-scheduling-` and 32 hexadecimal characters, as a Slot or Schedule search's
+// included resources carry it. It is answered from the scheduling publishers' feeds, served as the
+// publisher published it with `meta.source` and `lastSourceSync`, and is not found by a search of
+// this type.
+//
 // GET /v1/fhir/r4/HealthcareService/{id} (readHealthcareService):
 // https://docs.haau3.com/api-reference/provider-directory/read-a-healthcareservice
 func (c *Client) ReadHealthcareService(ctx context.Context, id string, opts ...Option) (*fhir.HealthcareService, error) {
@@ -1427,6 +1405,11 @@ func (c *Client) ReadInsurancePlan(ctx context.Context, id string, opts ...Optio
 // Read one location by id, as returned by a search on this service. A pharmacy's store
 // (`Location-pharmacy-{NPI}`, from a pharmacy search on `HealthcareService`) is read back from
 // NPPES.
+//
+// A scheduling publisher's Location is read here too, by its id: `Location-scheduling-` and 32
+// hexadecimal characters, as a Slot or Schedule search's included resources carry it. It is
+// answered from the scheduling publishers' feeds, served as the publisher published it with
+// `meta.source` and `lastSourceSync`, and is not found by a search of this type.
 //
 // GET /v1/fhir/r4/Location/{id} (readLocation):
 // https://docs.haau3.com/api-reference/provider-directory/read-a-location
@@ -1458,6 +1441,11 @@ func (c *Client) ReadOrganizationAffiliation(ctx context.Context, id string, opt
 //
 // Read one practitioner by id, as returned by a search on this service.
 //
+// A scheduling publisher's Practitioner is read here too, by its id: `Practitioner-scheduling-` and
+// 32 hexadecimal characters, as a Slot or Schedule search's included resources carry it. It is
+// answered from the scheduling publishers' feeds, served as the publisher published it with
+// `meta.source` and `lastSourceSync`, and is not found by a search of this type.
+//
 // GET /v1/fhir/r4/Practitioner/{id} (readPractitioner):
 // https://docs.haau3.com/api-reference/provider-directory/read-a-practitioner
 func (c *Client) ReadPractitioner(ctx context.Context, id string, opts ...Option) (*fhir.Practitioner, error) {
@@ -1467,6 +1455,12 @@ func (c *Client) ReadPractitioner(ctx context.Context, id string, opts ...Option
 // ReadPractitionerRole: Read a PractitionerRole.
 //
 // Read one practitioner role by id, as returned by a search on this service.
+//
+// A scheduling publisher's PractitionerRole is read here too, by its id:
+// `PractitionerRole-scheduling-` and 32 hexadecimal characters, as a Slot or Schedule search's
+// included resources carry it. It is answered from the scheduling publishers' feeds, served as the
+// publisher published it with `meta.source` and `lastSourceSync`, and is not found by a search of
+// this type.
 //
 // GET /v1/fhir/r4/PractitionerRole/{id} (readPractitionerRole):
 // https://docs.haau3.com/api-reference/provider-directory/read-a-practitionerrole
@@ -1487,6 +1481,29 @@ func (c *Client) ReadPractitionerRole(ctx context.Context, id string, opts ...Op
 // https://docs.haau3.com/api-reference/questionnaires/read-a-questionnaire
 func (c *Client) ReadQuestionnaire(ctx context.Context, id string, opts ...Option) (*fhir.Questionnaire, error) {
 	return call(ctx, c, &opReadQuestionnaire, []string{id}, nil, nil, nil, decodeAs[fhir.Questionnaire], opts)
+}
+
+// ReadSchedule: Read a schedule.
+//
+// Read one Schedule by its id, as a Slot's `schedule` reference or a Schedule search's `fullUrl`
+// names it: 32 hexadecimal characters. A Schedule is the provider, the place and the service a
+// publisher's Slots belong to; it names its Location and its provider, each read here by id too.
+//
+// GET /v1/fhir/r4/Schedule/{id} (readSchedule):
+// https://docs.haau3.com/api-reference/scheduling/read-a-schedule
+func (c *Client) ReadSchedule(ctx context.Context, id string, opts ...Option) (*fhir.Schedule, error) {
+	return call(ctx, c, &opReadSchedule, []string{id}, nil, nil, nil, decodeAs[fhir.Schedule], opts)
+}
+
+// ReadSlot: Read a slot.
+//
+// Read one Slot by its id, as a search's `fullUrl` names it: 32 hexadecimal characters. A Slot is
+// served while its publisher lists it, whatever its status or start; one marked as not accepting
+// patients is never served.
+//
+// GET /v1/fhir/r4/Slot/{id} (readSlot): https://docs.haau3.com/api-reference/scheduling/read-a-slot
+func (c *Client) ReadSlot(ctx context.Context, id string, opts ...Option) (*fhir.Slot, error) {
+	return call(ctx, c, &opReadSlot, []string{id}, nil, nil, nil, decodeAs[fhir.Slot], opts)
 }
 
 // ReconcileMedications: Reconcile one patient's medication records.
@@ -1744,21 +1761,6 @@ func (c *Client) SearchPractitionerRole(ctx context.Context, params SearchPracti
 	return call(ctx, c, &opSearchPractitionerRole, nil, query, err, nil, decodeAs[fhir.Bundle], opts)
 }
 
-// SearchProviderLocations: Search provider locations.
-//
-// Returns the matching slots grouped by provider location: each item in `providerLocations` is one
-// provider at one location, or a location with no provider, with its total slot count and soonest
-// availability, paginated by provider location. Its opaque `key` drills down to its individual
-// slots via `GET /v1/scheduling/slots?providerLocationKey=<key>`. Same filters as `/slots`.
-// Requires a valid API key.
-//
-// GET /v1/scheduling/provider-locations (searchProviderLocations):
-// https://docs.haau3.com/api-reference/scheduling/search-provider-locations
-func (c *Client) SearchProviderLocations(ctx context.Context, params SearchProviderLocationsParams, opts ...Option) (*SearchProviderLocationsResponse, error) {
-	query, err := params.query()
-	return call(ctx, c, &opSearchProviderLocations, nil, query, err, nil, decodeAs[SearchProviderLocationsResponse], opts)
-}
-
 // SearchQuestionnaire: List or find a questionnaire.
 //
 // With no parameters, this lists the questionnaires this service holds copies of. Those render the
@@ -1789,16 +1791,54 @@ func (c *Client) SearchQuestionnaire(ctx context.Context, params SearchQuestionn
 	return call(ctx, c, &opSearchQuestionnaire, nil, query, err, nil, decodeAs[fhir.Bundle], opts)
 }
 
-// SearchSlots: Search appointment slots.
+// SearchSchedule: Find schedules.
 //
-// Returns provider availability slots matching the filters, with pagination. Requires a valid API
-// key.
+// Search the Schedules of SMART Scheduling Links publishers: each the provider, the place and the
+// service a publisher's Slots belong to. The answer is a FHIR `searchset` Bundle whose matches are
+// Schedules, each as its publisher published it (the guide's Schedule profile), in order of id.
+// Each Schedule's Location and provider come in the same Bundle when asked for:
+// `_include=Schedule:actor`, then `_include:iterate=PractitionerRole:practitioner` and
+// `_include:iterate=HealthcareService:location`. Each included resource comes once, and `total`
+// counts the Schedules only.
 //
-// GET /v1/scheduling/slots (searchSlots):
-// https://docs.haau3.com/api-reference/scheduling/search-appointment-slots
-func (c *Client) SearchSlots(ctx context.Context, params SearchSlotsParams, opts ...Option) (*SearchSlotsResponse, error) {
+// A Schedule search does not reach its Slots: a Schedule matches whether or not it has a free Slot
+// ahead, and nothing here filters by a Slot's time, status or patient type. To find open Slots,
+// search Slots, with `_include=Slot:schedule` for each one's Schedule. Follow the `next` link to
+// continue: its cursor belongs to the one search.
+//
+// Every other parameter is refused by name rather than ignored, so a search never quietly answers a
+// different question than the one asked. `_sort`, `_total`, `_summary`, `_elements` and
+// `_revinclude` are not served.
+//
+// GET /v1/fhir/r4/Schedule (searchSchedule):
+// https://docs.haau3.com/api-reference/scheduling/find-schedules
+func (c *Client) SearchSchedule(ctx context.Context, params SearchScheduleParams, opts ...Option) (*fhir.Bundle, error) {
 	query, err := params.query()
-	return call(ctx, c, &opSearchSlots, nil, query, err, nil, decodeAs[SearchSlotsResponse], opts)
+	return call(ctx, c, &opSearchSchedule, nil, query, err, nil, decodeAs[fhir.Bundle], opts)
+}
+
+// SearchSlot: Find slots.
+//
+// Search open appointment slots from SMART Scheduling Links publishers. The answer is a FHIR
+// `searchset` Bundle whose matches are Slots, each as its publisher published it (the guide's Slot
+// profile), in order of start and then id. Each Slot's Schedule, and the Schedule's Location and
+// provider, come in the same Bundle when asked for: `_include=Slot:schedule`, then
+// `_include:iterate=Schedule:actor`, `_include:iterate=PractitionerRole:practitioner` and
+// `_include:iterate=HealthcareService:location`. Each included resource comes once, and `total`
+// counts the Slots only.
+//
+// With no `status` a search returns `free` Slots, and with no `start` Slots starting from now; the
+// `self` link shows both as applied. A Slot marked as not accepting patients is never served.
+// Follow the `next` link to continue: its cursor belongs to the one search.
+//
+// Every other parameter is refused by name rather than ignored, so a search never quietly answers a
+// different question than the one asked. `_sort`, `_total`, `_summary`, `_elements` and
+// `_revinclude` are not served.
+//
+// GET /v1/fhir/r4/Slot (searchSlot): https://docs.haau3.com/api-reference/scheduling/find-slots
+func (c *Client) SearchSlot(ctx context.Context, params SearchSlotParams, opts ...Option) (*fhir.Bundle, error) {
+	query, err := params.query()
+	return call(ctx, c, &opSearchSlot, nil, query, err, nil, decodeAs[fhir.Bundle], opts)
 }
 
 // StructureDosage: Structure a prescription's directions as a FHIR Dosage.
@@ -1972,6 +2012,16 @@ func (BatchCalls) ReadQuestionnaire(id string) *Call[*fhir.Questionnaire] {
 	return newCall(&opReadQuestionnaire, []string{id}, nil, nil, nil, decodeAs[fhir.Questionnaire])
 }
 
+// ReadSchedule is Client.ReadSchedule as an entry of a batch, sent by Client.Batch.
+func (BatchCalls) ReadSchedule(id string) *Call[*fhir.Schedule] {
+	return newCall(&opReadSchedule, []string{id}, nil, nil, nil, decodeAs[fhir.Schedule])
+}
+
+// ReadSlot is Client.ReadSlot as an entry of a batch, sent by Client.Batch.
+func (BatchCalls) ReadSlot(id string) *Call[*fhir.Slot] {
+	return newCall(&opReadSlot, []string{id}, nil, nil, nil, decodeAs[fhir.Slot])
+}
+
 // SearchEndpoint is Client.SearchEndpoint as an entry of a batch, sent by Client.Batch.
 func (BatchCalls) SearchEndpoint(params SearchEndpointParams) *Call[*fhir.Bundle] {
 	query, err := params.query()
@@ -2027,6 +2077,18 @@ func (BatchCalls) SearchPractitionerRole(params SearchPractitionerRoleParams) *C
 func (BatchCalls) SearchQuestionnaire(params SearchQuestionnaireParams) *Call[*fhir.Bundle] {
 	query, err := params.query()
 	return newCall(&opSearchQuestionnaire, nil, query, err, nil, decodeAs[fhir.Bundle])
+}
+
+// SearchSchedule is Client.SearchSchedule as an entry of a batch, sent by Client.Batch.
+func (BatchCalls) SearchSchedule(params SearchScheduleParams) *Call[*fhir.Bundle] {
+	query, err := params.query()
+	return newCall(&opSearchSchedule, nil, query, err, nil, decodeAs[fhir.Bundle])
+}
+
+// SearchSlot is Client.SearchSlot as an entry of a batch, sent by Client.Batch.
+func (BatchCalls) SearchSlot(params SearchSlotParams) *Call[*fhir.Bundle] {
+	query, err := params.query()
+	return newCall(&opSearchSlot, nil, query, err, nil, decodeAs[fhir.Bundle])
 }
 
 // StructureDosage is Client.StructureDosage as an entry of a batch, sent by Client.Batch.

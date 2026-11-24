@@ -13,7 +13,7 @@ import (
 type RawRequest struct {
 	// Method is GET or POST.
 	Method string
-	// Path is a path such as /v1/scheduling/publishers, or a whole URL on the client's base URL.
+	// Path is a path such as /v1/fhir/r4/metadata, or a whole URL on the client's base URL.
 	Path string
 	// Query is sent with the API's own parameter names, in name order.
 	Query url.Values
@@ -65,7 +65,7 @@ func (r *RawResponse) Format(f fmt.State, _ rune) { _, _ = io.WriteString(f, r.S
 // headers, request id, attempts and duration. A 429 or a 5xx is still tried again. It returns an
 // error only when no answer arrived, or the request was not sent (a URL on another host, say).
 //
-//	raw, err := client.Request(ctx, haau3.RawRequest{Method: "GET", Path: "/v1/scheduling/publishers"})
+//	raw, err := client.Request(ctx, haau3.RawRequest{Method: "GET", Path: "/v1/fhir/r4/metadata"})
 //	fmt.Println(raw.Status, raw.StatusText, raw.RequestID)
 func (c *Client) Request(ctx context.Context, req RawRequest, opts ...Option) (*RawResponse, error) {
 	if req.Method != "GET" && req.Method != "POST" {

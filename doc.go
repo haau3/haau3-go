@@ -1,6 +1,7 @@
 // Package haau3 is the Go SDK for the haau3 platform API (https://docs.haau3.com), as typed calls:
 //
-//   - Scheduling: open appointment slots from many SMART Scheduling Links publishers, in one search.
+//   - Scheduling: open appointment slots from many SMART Scheduling Links publishers, in one FHIR
+//     search, each Slot with its Schedule, Location and provider.
 //   - Medical Benefits: Medicare Advantage and ACA Marketplace plans as FHIR InsurancePlan, searchable
 //     by state or county, and which providers are in a plan's network.
 //   - MedList: one reconciled medication list from one patient's FHIR medication records

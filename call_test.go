@@ -73,12 +73,12 @@ func TestGetSendsThePathWithEachValueEncodedTheQueryAndTheKey(t *testing.T) {
 }
 
 func TestGetTakesAPathWithNoNameAndJSONOutsideTheFHIRBase(t *testing.T) {
-	rec := record(plainReply(200, map[string]any{"publishers": []any{}}))
+	rec := record(plainReply(200, map[string]any{"things": []any{}}))
 	var got map[string]any
-	if err := testClient(t, rec).Get(context.Background(), "/v1/scheduling/publishers", CallParams{}, &got); err != nil {
+	if err := testClient(t, rec).Get(context.Background(), "/v1/elsewhere", CallParams{}, &got); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := got["publishers"]; !ok {
+	if _, ok := got["things"]; !ok {
 		t.Fatalf("decoded %v", got)
 	}
 	if accept := rec.last().Header.Get("Accept"); accept != "application/json" {
