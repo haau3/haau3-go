@@ -474,6 +474,80 @@ func TestTheFirstCallSaysSoWhenNoSlotMatches(t *testing.T) {
 	}
 }
 
+// The first call prints a practitioner's given and family names when the name has no text, and no
+// practitioner when the Schedule names none or the name has no parts: most publishers send no text.
+func TestTheFirstCallPrintsAPractitionersGivenAndFamilyNames(t *testing.T) {
+	if testing.Short() {
+		t.Skip("builds a program")
+	}
+	var overlay sampleOverlay
+	readJSON(t, filepath.Join("openapi", "code-samples.json"), &overlay)
+	var source string
+	for _, a := range overlay.Actions {
+		if a.Target == "$.paths['/v1/fhir/r4/Slot'].get" {
+			source = a.Update.Samples[0].Source
+		}
+	}
+	bins := buildSamples(t, map[string]string{"first": source})
+	const api = "https://api.haau3.com/v1/fhir/r4"
+	entry := func(resource map[string]any, mode string) map[string]any {
+		return map[string]any{"fullUrl": api + "/" + resource["resourceType"].(string) + "/" + resource["id"].(string), "search": map[string]any{"mode": mode}, "resource": resource}
+	}
+	answer := func(actors []string, more ...map[string]any) []byte {
+		var refs []any
+		for _, a := range actors {
+			refs = append(refs, map[string]any{"reference": a})
+		}
+		entries := []any{
+			entry(map[string]any{
+				"resourceType": "Slot", "id": "s1", "schedule": map[string]any{"reference": "Schedule/sc1"}, "status": "free",
+				"start": "2026-12-01T09:00:00-05:00", "end": "2026-12-01T09:30:00-05:00",
+				"extension": []any{map[string]any{"url": "http://hl7.org/fhir/uv/smart-scheduling-links/StructureDefinition/booking-deep-link", "valueUrl": "https://example.org/book"}},
+			}, "match"),
+			entry(map[string]any{"resourceType": "Schedule", "id": "sc1", "actor": refs}, "include"),
+			entry(map[string]any{"resourceType": "Location", "id": "l1", "name": "Main Street Clinic"}, "include"),
+		}
+		for _, m := range more {
+			entries = append(entries, entry(m, "include"))
+		}
+		out, _ := json.Marshal(map[string]any{"resourceType": "Bundle", "type": "searchset", "total": 1, "entry": entries})
+		return out
+	}
+	role := map[string]any{"resourceType": "PractitionerRole", "id": "r1", "practitioner": map[string]any{"reference": "Practitioner/p1"}}
+	practitioner := func(name map[string]any) map[string]any {
+		return map[string]any{"resourceType": "Practitioner", "id": "p1", "name": []any{name}}
+	}
+	printed := func(practitioner string) string {
+		line := ""
+		if practitioner != "" {
+			line = "  \"practitioner\": \"" + practitioner + "\",\n"
+		}
+		return "{\n  \"start\": \"2026-12-01T09:00:00-05:00\",\n" + line + "  \"location\": \"Main Street Clinic\",\n  \"bookingLink\": \"https://example.org/book\"\n}\n"
+	}
+	for _, c := range []struct {
+		name string
+		body []byte
+		want string
+	}{
+		{"given and family", answer([]string{"Location/l1", "PractitionerRole/r1"}, role, practitioner(map[string]any{"given": []any{"Ana", "Maria"}, "family": "Lee"})), printed("Ana Maria Lee")},
+		{"no provider", answer([]string{"Location/l1"}), printed("")},
+		{"a name with no parts", answer([]string{"Location/l1", "PractitionerRole/r1"}, role, practitioner(map[string]any{"use": "official"})), printed("")},
+	} {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/fhir+json")
+			_, _ = w.Write(c.body)
+		}))
+		cmd := exec.Command(filepath.Join(bins, "first"))
+		cmd.Dir = t.TempDir()
+		cmd.Env = []string{"HAAU3_API_KEY=" + markerKey, "HAAU3_BASE_URL=" + server.URL}
+		out, err := cmd.CombinedOutput()
+		server.Close()
+		if err != nil || string(out) != c.want {
+			t.Errorf("%s: printed %q (%v), want %q", c.name, out, err, c.want)
+		}
+	}
+}
+
 // Every sample builds as its own program against this module, and prints what its example
 // request's answer holds.
 func TestEachSampleRunsAsWritten(t *testing.T) {
