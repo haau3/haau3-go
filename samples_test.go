@@ -15,8 +15,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-
-	"github.com/haau3/haau3-go/fhir"
 )
 
 // The code samples in openapi/code-samples.json, one per operation, each built and run as it is
@@ -223,19 +221,36 @@ func expectedOutput(o specOperation) string {
 	answer := o.answer.(map[string]any)
 	switch {
 	case o.id == "searchSlot":
-		// The first call prints the first Slot its Bundle holds as the SDK decodes it, indented.
-		raw, err := json.Marshal(answer)
-		if err != nil {
-			return err.Error()
+		// The first call prints the first Slot's start, practitioner, location and booking link,
+		// read from the example answer by hand, not through the view, indented.
+		var bundle struct {
+			Entry []struct {
+				Resource map[string]any `json:"resource"`
+			} `json:"entry"`
 		}
-		var bundle fhir.Bundle
+		raw, _ := json.Marshal(answer)
 		if err := json.Unmarshal(raw, &bundle); err != nil {
 			return err.Error()
 		}
-		var slot *fhir.Slot
-		for _, entry := range bundle.Entry {
-			if s, ok := entry.Resource.(*fhir.Slot); ok && slot == nil {
-				slot = s
+		var slot struct {
+			Start        any `json:"start"`
+			Practitioner any `json:"practitioner,omitempty"`
+			Location     any `json:"location,omitempty"`
+			BookingLink  any `json:"bookingLink,omitempty"`
+		}
+		for _, e := range bundle.Entry {
+			switch r := e.Resource; r["resourceType"] {
+			case "Slot":
+				slot.Start = r["start"]
+				for _, x := range r["extension"].([]any) {
+					if x := x.(map[string]any); strings.HasSuffix(x["url"].(string), "/booking-deep-link") {
+						slot.BookingLink = x["valueUrl"]
+					}
+				}
+			case "Practitioner":
+				slot.Practitioner = r["name"].([]any)[0].(map[string]any)["text"]
+			case "Location":
+				slot.Location = r["name"]
 			}
 		}
 		out, err := json.MarshalIndent(slot, "", "  ")
@@ -358,7 +373,8 @@ func TestTheSamplesAreAnOverlayOfOneGoSamplePerOperation(t *testing.T) {
 	}
 }
 
-// The Slot search is the first call: one provider's slots, found by NPI, then the first it found.
+// The Slot search is the first call: one provider's slots, found by NPI through the helper that sends
+// every include, then the first slot's view.
 func TestTheSlotSearchIsTheFirstCall(t *testing.T) {
 	var overlay sampleOverlay
 	readJSON(t, filepath.Join("openapi", "code-samples.json"), &overlay)
@@ -368,16 +384,18 @@ func TestTheSlotSearchIsTheFirstCall(t *testing.T) {
 			source = a.Update.Samples[0].Source
 		}
 	}
-	if !strings.Contains(source, "\t// Open appointment slots of one provider, found by NPI.\n") ||
-		!strings.Contains(source, "client.SearchSlot(ctx, haau3.SearchSlotParams{ProviderIdentifier: ") ||
+	if !strings.Contains(source, "\t// Open appointment slots of one provider, found by NPI, each with its schedule, location and provider.\n") ||
+		!strings.Contains(source, "client.SearchSlotWithIncludes(ctx, haau3.SearchSlotWithIncludesParams{ProviderIdentifier: ") ||
+		strings.Contains(source, "Include\"") || strings.Contains(source, "Include:") ||
+		!strings.Contains(source, "views, err := haau3.SlotViews(page)\n") ||
 		!strings.Contains(source, emptyGuard) ||
-		!strings.HasSuffix(source, "\tfmt.Println(string(slot))\n}\n") {
+		!strings.HasSuffix(source, "\tfmt.Println(string(out))\n}\n") {
 		t.Errorf("the slot search is not the first call:\n%s", source)
 	}
 }
 
 // emptyGuard is the first call's answer to a search that finds nothing.
-const emptyGuard = "\tif len(slots) == 0 {\n\t\tfmt.Println(\"No open slots matched.\")\n\t\treturn\n\t}\n"
+const emptyGuard = "\tif len(views) == 0 {\n\t\tfmt.Println(\"No open slots matched.\")\n\t\treturn\n\t}\n"
 
 // The first call, against a search that finds no slot, says so; the sample before the guard
 // panicked, as the control.
