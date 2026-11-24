@@ -1,10 +1,13 @@
 package haau3
 
 import (
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -176,5 +179,52 @@ func TestATagIsMadeOnlyInTheApprovedJob(t *testing.T) {
 	}
 	if strings.Contains(text, "id-token") {
 		t.Error("a Go release needs no OIDC token")
+	}
+}
+
+// The proxy can miss a tag made seconds before it is asked (v0.4.2, 2026-11-24), so the release asks
+// it again for ten minutes before it fails. The step's own script runs, with a stand-in `go` that
+// misses a set number of times and no wait.
+func TestTheReleaseAsksTheModuleProxyAgainBeforeItFails(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the step runs on ubuntu-latest, and its stand-in go is a shell script")
+	}
+	text := workflows(t)["release.yml"]
+	_, step, _ := strings.Cut(text, "- name: The module proxy has it\n")
+	_, body, _ := strings.Cut(step, "run: |\n")
+	var lines []string
+	for _, line := range strings.Split(body, "\n") {
+		if !strings.HasPrefix(line, "          ") {
+			break
+		}
+		lines = append(lines, strings.TrimPrefix(line, "          "))
+	}
+	script := strings.Join(lines, "\n")
+	if strings.Index(script, "sleep 30") > strings.Index(script, "go list -m") {
+		t.Fatal("the step asks the proxy before it waits")
+	}
+	fast := strings.ReplaceAll(script, "sleep 30", "sleep 0")
+	dir := t.TempDir()
+	count := filepath.Join(dir, "count")
+	stub := "#!/bin/sh\nn=$(cat \"$COUNT\" 2>/dev/null || echo 0)\nn=$((n+1))\necho \"$n\" > \"$COUNT\"\n[ \"$n\" -gt \"$MISSES\" ] || exit 1\necho \"github.com/haau3/haau3-go v$VERSION\"\n"
+	if err := os.WriteFile(filepath.Join(dir, "go"), []byte(stub), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	run := func(misses string) (string, int, error) {
+		_ = os.Remove(count)
+		cmd := exec.Command("bash", "-e", "-c", fast)
+		cmd.Env = []string{"PATH=" + dir + ":/usr/bin:/bin", "VERSION=9.9.9", "COUNT=" + count, "MISSES=" + misses}
+		out, err := cmd.CombinedOutput()
+		asked, _ := os.ReadFile(count)
+		n, _ := strconv.Atoi(strings.TrimSpace(string(asked)))
+		return string(out), n, err
+	}
+	out, asked, err := run("2")
+	if err != nil || asked != 3 || !strings.Contains(out, "attempt 2 of 20") || !strings.HasSuffix(out, "github.com/haau3/haau3-go v9.9.9\n") {
+		t.Errorf("two misses, then the proxy has it: asked %d times, %v\n%s", asked, err, out)
+	}
+	out, asked, err = run("99")
+	if err == nil || asked != 20 || !strings.Contains(out, "::error::The module proxy does not have v9.9.9 after ten minutes.") {
+		t.Errorf("the proxy never has it: asked %d times, %v\n%s", asked, err, out)
 	}
 }
