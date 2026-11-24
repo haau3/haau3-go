@@ -3,7 +3,6 @@ package haau3
 import (
 	"context"
 	"slices"
-	"strings"
 
 	"github.com/haau3/haau3-go/fhir"
 	"github.com/haau3/haau3-go/internal/includes"
@@ -105,10 +104,9 @@ type SlotView struct {
 //		fmt.Println(*view.Slot.Start, view.BookingLink)
 //	}
 func SlotViews(page *fhir.Bundle) ([]SlotView, error) {
-	h := holders{}
 	views := []SlotView{}
 	for _, slot := range Matches[*fhir.Slot](page) {
-		found, err := follow(page, h, slot.Schedule, slot)
+		found, err := follow(page, slot.Schedule, slot)
 		if err != nil {
 			return nil, err
 		}
@@ -117,7 +115,7 @@ func SlotViews(page *fhir.Bundle) ([]SlotView, error) {
 			return nil, notSent("A Slot in this page names a Schedule the page does not hold. Every Slot names one, and a " +
 				"search with its includes holds it: search with SearchSlotWithIncludes, or send _include=Slot:schedule.")
 		}
-		reached, err := reach(page, h, schedule)
+		reached, err := reach(page, schedule)
 		if err != nil {
 			return nil, err
 		}
@@ -150,10 +148,9 @@ func SlotViews(page *fhir.Bundle) ([]SlotView, error) {
 // the page holds them. It returns an *Error of KindNotSent when two entries could each be the one a
 // reference names.
 func ScheduleViews(page *fhir.Bundle) ([]ScheduleView, error) {
-	h := holders{}
 	views := []ScheduleView{}
 	for _, schedule := range Matches[*fhir.Schedule](page) {
-		reached, err := reach(page, h, schedule)
+		reached, err := reach(page, schedule)
 		if err != nil {
 			return nil, err
 		}
@@ -181,65 +178,26 @@ func (c *Client) SearchScheduleWithIncludes(ctx context.Context, params SearchSc
 	return c.SearchSchedule(ctx, params.search(includes.Schedule), opts...)
 }
 
-// holders maps a resource found through a reference to the Bundle entry it resolves its own
-// references from: itself, or for a contained resource the entry that contains it, as FHIR says.
-// Resources are told apart by pointer; one held as a value has no identity and resolves from itself.
-type holders map[holderKey]fhir.Resource
-
-type holderKey struct {
-	resourceType string
-	pointer      uintptr
-}
-
-func keyOf(r fhir.Resource) (holderKey, bool) {
-	if isNilResource(r) || !isPointer(r) {
-		return holderKey{}, false
-	}
-	return holderKey{resourceType: r.ResourceType(), pointer: pointerOf(r)}, true
-}
-
-func (h holders) of(r fhir.Resource) fhir.Resource {
-	if k, ok := keyOf(r); ok {
-		if holder, ok := h[k]; ok {
-			return holder
-		}
-	}
-	return r
-}
-
-func (h holders) record(found, holder fhir.Resource) {
-	if k, ok := keyOf(found); ok {
-		if _, ok := h[k]; !ok {
-			h[k] = holder
-		}
-	}
-}
-
 // follow is the resource a reference names, found from `from` by FHIR's rules for a Bundle, with no
-// request, or nil. A contained resource resolves from the entry that contains it.
-func follow(page *fhir.Bundle, h holders, reference *fhir.Reference, from fhir.Resource) (fhir.Resource, error) {
-	holder := h.of(from)
-	found, err := resolveIn(page, referenceTarget(reference), holder)
+// request, or nil. A contained resource resolves from the entry that contains it (resolveIn finds
+// it), so what a contained PractitionerRole names is found from the Schedule that contains both.
+func follow(page *fhir.Bundle, reference *fhir.Reference, from fhir.Resource) (fhir.Resource, error) {
+	found, err := resolveIn(page, referenceTarget(reference), from)
 	if err != nil || isNilResource(found) {
 		return nil, err
-	}
-	if strings.HasPrefix(referenceTarget(reference), "#") {
-		h.record(found, holder)
-	} else {
-		h.record(found, found)
 	}
 	return found, nil
 }
 
 // reach is what a Schedule names and reaches in one page, found by FHIR's reference rules, with no
 // request. A target of another type than its element allows is left out.
-func reach(page *fhir.Bundle, h holders, schedule *fhir.Schedule) (ScheduleView, error) {
+func reach(page *fhir.Bundle, schedule *fhir.Schedule) (ScheduleView, error) {
 	view := ScheduleView{
 		Schedule: schedule, Locations: []*fhir.Location{}, PractitionerRoles: []*fhir.PractitionerRole{},
 		Practitioners: []*fhir.Practitioner{}, HealthcareServices: []*fhir.HealthcareService{},
 	}
 	for i := range schedule.Actor {
-		found, err := follow(page, h, &schedule.Actor[i], schedule)
+		found, err := follow(page, &schedule.Actor[i], schedule)
 		if err != nil {
 			return view, err
 		}
@@ -255,7 +213,7 @@ func reach(page *fhir.Bundle, h holders, schedule *fhir.Schedule) (ScheduleView,
 		}
 	}
 	for _, role := range view.PractitionerRoles {
-		found, err := follow(page, h, role.Practitioner, role)
+		found, err := follow(page, role.Practitioner, role)
 		if err != nil {
 			return view, err
 		}
@@ -265,7 +223,7 @@ func reach(page *fhir.Bundle, h holders, schedule *fhir.Schedule) (ScheduleView,
 	}
 	for _, service := range view.HealthcareServices {
 		for i := range service.Location {
-			found, err := follow(page, h, &service.Location[i], service)
+			found, err := follow(page, &service.Location[i], service)
 			if err != nil {
 				return view, err
 			}

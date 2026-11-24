@@ -27,31 +27,39 @@ func restful(url string) (address, bool) {
 }
 
 // Resolve is the resource a reference names, found in a Bundle as FHIR R4 resolves one ("Resolving
-// references in Bundles"), with no request. T is the type the reference must name, such as
-// *fhir.Practitioner, so the resource comes typed; fhir.Resource takes any type.
+// references in Bundles"), with no request. T is the type the reference must name, a pointer such
+// as *fhir.Practitioner, so the resource comes typed, or fhir.Resource for any type. A value type
+// such as fhir.Practitioner does not compile: the Bundle holds pointers.
 //
-// from is the resource that holds the reference, or nil. A reference to a resource it contains
-// (#id) is found among its contained resources, and # alone is from itself. A relative reference
-// (Practitioner/123) is resolved against the address of the entry from is in, as FHIR says, so from
-// must be one of the Bundle's entries. Without from, a relative reference is matched to the one
-// entry whose address ends in that type and id. An absolute reference, a urn:uuid among them, is
-// matched to the entry with that fullUrl, and a version (_history/2) to the entry's meta.versionId.
+// from is the resource that holds the reference, or nil: one of the Bundle's entries, or a resource
+// contained in one. A reference to a contained resource (#id) is found among the contained resources
+// of the entry that holds from, or of from itself when it is not in the Bundle, and # alone is that
+// resource. A relative reference (Practitioner/123) is resolved against the address of the entry
+// that holds from, as FHIR says, so from must be in the Bundle. Without from, a relative reference is
+// matched to the one entry whose address ends in that type and id. An absolute reference, a urn:uuid
+// among them, is matched to the entry with that fullUrl, and a version (_history/2) to the entry's
+// meta.versionId.
 //
 // It returns T's zero value and no error when the Bundle holds nothing the reference names, for a
 // nil reference, one by identifier alone, and one FHIR gives no meaning. It returns an *Error of
 // KindNotSent when two entries could each be the one it names, when it names a resource of
-// another type than T, for a contained reference with no from, and for a from that is not an entry
-// of the Bundle. No message repeats the reference. The resources are the Bundle's own, held as the
-// SDK decodes them, each a pointer; nothing is copied or replaced.
+// another type than T, for a contained reference with no from, and for a relative reference from a
+// resource that is not in the Bundle. No message repeats the reference. The resources are the
+// Bundle's own, held as the SDK decodes them, each a pointer; nothing is copied or replaced.
 //
-//	role, err := haau3.Resolve[*fhir.PractitionerRole](page, &schedule.Actor[0], schedule)
-//	if err != nil {
-//		return err
+//	for _, pharmacy := range haau3.Matches[*fhir.HealthcareService](page) {
+//		organization, err := haau3.Resolve[*fhir.Organization](page, pharmacy.ProvidedBy, pharmacy)
+//		if err != nil {
+//			return err
+//		}
+//		if organization != nil && organization.Name != nil {
+//			fmt.Println(*organization.Name)
+//		}
 //	}
-//	if role != nil {
-//		practitioner, err := haau3.Resolve[*fhir.Practitioner](page, role.Practitioner, role)
-//	}
-func Resolve[T fhir.Resource](bundle *fhir.Bundle, reference *fhir.Reference, from fhir.Resource) (T, error) {
+func Resolve[T interface {
+	fhir.Resource
+	comparable
+}](bundle *fhir.Bundle, reference *fhir.Reference, from fhir.Resource) (T, error) {
 	var zero T
 	found, err := resolveIn(bundle, referenceTarget(reference), from)
 	if err != nil || found == nil {
@@ -66,13 +74,16 @@ func Resolve[T fhir.Resource](bundle *fhir.Bundle, reference *fhir.Reference, fr
 
 // Matches is the resources a search page matched, of type T, in page order, with no request: each
 // entry whose search mode is "match", or says none. A resource an _include brought and a search's
-// own OperationOutcome are not among them. fhir.Resource gives every match; Resources gives them
-// across pages.
+// own OperationOutcome are not among them. T is a pointer such as *fhir.Slot, or fhir.Resource for
+// every match; a value type such as fhir.Slot does not compile. Resources gives them across pages.
 //
 //	for _, slot := range haau3.Matches[*fhir.Slot](page) {
 //		fmt.Println(*slot.Start)
 //	}
-func Matches[T fhir.Resource](page *fhir.Bundle) []T {
+func Matches[T interface {
+	fhir.Resource
+	comparable
+}](page *fhir.Bundle) []T {
 	if page == nil {
 		return nil
 	}
@@ -89,9 +100,9 @@ func Matches[T fhir.Resource](page *fhir.Bundle) []T {
 }
 
 // isMatch reports whether an entry is one a search matched: it holds a resource, and its search mode
-// is "match" or it says none.
+// is "match" or it says none. A typed nil (a nil *fhir.Slot) holds none.
 func isMatch(entry fhir.BundleEntry) bool {
-	if entry.Resource == nil {
+	if isNilResource(entry.Resource) {
 		return false
 	}
 	return entry.Search == nil || entry.Search.Mode == nil || *entry.Search.Mode == "match"
@@ -105,7 +116,7 @@ func referenceTarget(reference *fhir.Reference) string {
 }
 
 // typeName is the resource type T names: "Practitioner" for *fhir.Practitioner.
-func typeName[T fhir.Resource]() string {
+func typeName[T any]() string {
 	t := reflect.TypeFor[T]()
 	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
@@ -174,11 +185,17 @@ func resolveIn(bundle *fhir.Bundle, target string, from fhir.Resource) (fhir.Res
 		if isNilResource(from) {
 			return nil, notSent("A reference to a contained resource is found in the resource that holds it: pass from.")
 		}
+		// A contained resource's # references are to the resource that contains it, and to that
+		// resource's other contained resources, as FHIR says; from outside the Bundle, to from's own.
+		base := from
+		if e, ok := holderOf(bundle, from); ok {
+			base = e.resource
+		}
 		// # alone is the resource itself; #id is one it contains.
 		if target == "#" {
-			return from, nil
+			return base, nil
 		}
-		for _, contained := range containedOf(from) {
+		for _, contained := range containedOf(base) {
 			if !isNilResource(contained) && idOf(contained) == target[1:] {
 				return contained, nil
 			}
@@ -195,15 +212,9 @@ func resolveIn(bundle *fhir.Bundle, target string, from fhir.Resource) (fhir.Res
 	}
 	resourceType, id, version := m[1], m[2], m[3]
 	if !isNilResource(from) {
-		var holder *heldEntry
-		for _, e := range held(bundle) {
-			if sameResource(e.resource, from) {
-				holder = &e
-				break
-			}
-		}
-		if holder == nil {
-			return nil, notSent("The resource passed as from is not an entry of this Bundle.")
+		holder, ok := holderOf(bundle, from)
+		if !ok {
+			return nil, notSent("The resource passed as from is not in this Bundle, as an entry or contained in one.")
 		}
 		// FHIR resolves a relative reference only against an entry at a RESTful address.
 		a, ok := restful(holder.fullURL)
@@ -221,6 +232,25 @@ func resolveIn(bundle *fhir.Bundle, target string, from fhir.Resource) (fhir.Res
 		}
 	}
 	return one(found)
+}
+
+// holderOf is the entry a resource's references resolve from: the entry that is the resource, or the
+// one that contains it. Resources are told apart by pointer.
+func holderOf(bundle *fhir.Bundle, r fhir.Resource) (heldEntry, bool) {
+	entries := held(bundle)
+	for _, e := range entries {
+		if sameResource(e.resource, r) {
+			return e, true
+		}
+	}
+	for _, e := range entries {
+		for _, contained := range containedOf(e.resource) {
+			if sameResource(contained, r) {
+				return e, true
+			}
+		}
+	}
+	return heldEntry{}, false
 }
 
 // sameResource reports whether a and b are the one resource: the same pointer. A resource held as a

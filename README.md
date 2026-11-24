@@ -79,11 +79,12 @@ if len(view.Practitioners) > 0 && len(view.Practitioners[0].Name) > 0 {
 if len(view.Locations) > 0 {
 	slot.Location = view.Locations[0].Name
 }
-out, err := json.MarshalIndent(slot, "", "  ")
-if err != nil {
+out := json.NewEncoder(os.Stdout)
+out.SetEscapeHTML(false)
+out.SetIndent("", "  ")
+if err := out.Encode(slot); err != nil {
 	return err
 }
-fmt.Println(string(out))
 ```
 
 Every method takes a `context.Context` first, and its deadline or cancellation bounds the whole
@@ -446,9 +447,10 @@ for _, pharmacy := range haau3.Matches[*fhir.HealthcareService](page) {
 `Resolve` follows FHIR's rules for references in a Bundle: an absolute reference is the entry with
 that `fullUrl`; a relative one is resolved against the address of the entry holding it when you pass
 that resource as `from`, and otherwise is the one entry whose address ends in that type and id; `#id`
-is found in `from`'s contained resources. It is nil when the page does not hold the resource, and an
-`*Error` of `KindNotSent` when two entries could be the one meant, or the resource is not of the
-type you named. `fhir.Resource` as the type takes any type. A list parameter such as `Include`
+is found among the contained resources of the entry that holds `from`, so a contained resource can
+be `from` too. It is nil when the page does not hold the resource, and an `*Error` of `KindNotSent`
+when two entries could be the one meant, or the resource is not of the type you named. The type is a
+pointer such as `*fhir.Organization`, or `fhir.Resource` for any type. A list parameter such as `Include`
 takes one value as a list of one.
 
 ## Slots and schedules

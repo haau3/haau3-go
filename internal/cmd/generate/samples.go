@@ -72,7 +72,8 @@ const lineWidth = 100
 // emitSamples writes openapi/code-samples.json: an OpenAPI Overlay that adds a Go sample to every
 // operation as `x-codeSamples`, for a documentation site to show beside it. Each sample is a whole
 // program that sends the operation's example request from the spec and prints one field of the
-// answer, except the slot search, a quickstart's first call, which prints the first slot it found.
+// answer, except the slot search, a quickstart's first call, which searches through its helper and
+// prints the first slot's view.
 // Its client line says which key HAAU3_API_KEY must hold, from the operation's security (keyComment).
 // samples_test.go builds and runs every one, as it is written, against a stand-in API.
 func emitSamples(s *spec, hl7 *fhirSchema) ([]byte, error) {
@@ -134,7 +135,8 @@ const firstCall = "searchSlot"
 // firstCallLines are the first call's body: the Slot search's example through its helper, which sends
 // the includes itself, then the first Slot's view: when it starts, its practitioner's name, its
 // location's name and its booking link, as indented JSON (fmt would print the pointers), each left
-// out when the page has none. A search that finds nothing says so, rather than panicking.
+// out when the page has none, a link's & and < as they are. A search that finds nothing says so,
+// rather than panicking.
 func firstCallLines(o operation) ([]string, error) {
 	fields, err := firstCallFields(o)
 	if err != nil {
@@ -158,9 +160,10 @@ func firstCallLines(o operation) ([]string, error) {
 		"\tslot.Practitioner = view.Practitioners[0].Name[0].Text",
 		"}",
 		"if len(view.Locations) > 0 {", "\tslot.Location = view.Locations[0].Name", "}",
-		`out, err := json.MarshalIndent(slot, "", "  ")`,
-		"if err != nil {", "\tlog.Fatal(err)", "}",
-		"fmt.Println(string(out))",
+		"out := json.NewEncoder(os.Stdout)",
+		"out.SetEscapeHTML(false)",
+		`out.SetIndent("", "  ")`,
+		"if err := out.Encode(slot); err != nil {", "\tlog.Fatal(err)", "}",
 	}, nil
 }
 
@@ -212,7 +215,7 @@ func goSample(s *spec, hl7 *fhirSchema, o operation) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		imports = append(imports, "encoding/json")
+		imports = append(imports, "encoding/json", "os")
 		body = lines
 	case "fhirBatch":
 		lines, err := batchSample(s, o)
