@@ -37,16 +37,16 @@ func ExampleClient_ReadInsurancePlan() {
 	}
 }
 
-func ExampleClient_SearchSlots() {
+func ExampleClient_SearchSlot() {
 	client, err := haau3.NewClient()
 	if err != nil {
 		return
 	}
-	found, err := client.SearchSlots(context.Background(), haau3.SearchSlotsParams{City: new("Boston"), State: new("MA"), Limit: new(10)})
+	found, err := client.SearchSlot(context.Background(), haau3.SearchSlotParams{LocationAddressState: new("MA"), Count: new(10)})
 	if err != nil {
 		return
 	}
-	fmt.Println(found.Total, len(found.Slots))
+	fmt.Println(len(found.Entry))
 }
 
 func ExampleClient_Resources() {

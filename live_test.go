@@ -72,8 +72,8 @@ func TestLive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	found, err := client.SearchSlots(ctx, SearchSlotsParams{State: new("MA"), Limit: new(3)})
-	if err != nil || found.Total < 0 {
+	found, err := client.SearchSlot(ctx, SearchSlotParams{LocationAddressState: new("MA"), Count: new(3)})
+	if err != nil || found.Type == nil || *found.Type != "searchset" {
 		t.Fatalf("slots: %v", err)
 	}
 	plan, err := client.ReadInsurancePlan(ctx, "H2406-013-000")
@@ -107,10 +107,6 @@ func TestLive(t *testing.T) {
 		t.Fatalf("dosage part: %+v, %v", part, err)
 	} else if flags := ReviewFlags(part.ValueDosage).Flags; len(flags) != 1 || flags[0].Code != "route-form-mismatch" {
 		t.Errorf("flags: %+v", flags)
-	}
-	publishers, err := client.ListPublishers(ctx)
-	if err != nil || publishers.Publishers == nil {
-		t.Fatalf("publishers: %v", err)
 	}
 	first, err := client.SearchInsurancePlan(ctx, SearchInsurancePlanParams{CoverageAreaState: new("NC"), Count: new(2)})
 	if err != nil {

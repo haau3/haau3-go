@@ -91,13 +91,10 @@ func TestANoAnswerNeverPrintsItsOutcome(t *testing.T) {
 	assertNeverPrinted(t, "a no-answer", err)
 }
 
-func TestASchedulingRefusalNeverPrintsItsProblem(t *testing.T) {
+func TestARefusalOffTheFHIRBaseNeverPrintsItsBody(t *testing.T) {
 	p := map[string]any{"type": "about:blank", "title": "t", "status": 400, "detail": marker, "instance": "urn:x"}
-	_, err := testClient(t, record(plainReply(400, p))).SearchSlots(context.Background(), SearchSlotsParams{})
+	err := testClient(t, record(plainReply(400, p))).Get(context.Background(), "/v1/nowhere", CallParams{}, nil)
 	assertNeverPrinted(t, "a problem", err)
-	if asError(t, err).Problem().Detail != marker {
-		t.Error("the problem is not readable")
-	}
 }
 
 func TestABodyYouSentIsNeverPrinted(t *testing.T) {

@@ -53,7 +53,7 @@ func TestABatchableMarkOtherThanFalseStopsTheGenerator(t *testing.T) {
 }
 
 func TestABatchableMarkOutsideTheFHIRBaseStopsTheGenerator(t *testing.T) {
-	data, _ := specWith(t, "/v1/scheduling/publishers", "get", func(op map[string]any) { op[batchableField] = false })
+	data, _ := specWith(t, "/v1/sandbox/fhir/r4/metadata", "get", func(op map[string]any) { op[batchableField] = false })
 	if _, err := parseSpec(data); err == nil || !strings.Contains(err.Error(), "not on the FHIR base") {
 		t.Errorf("got %v", err)
 	}

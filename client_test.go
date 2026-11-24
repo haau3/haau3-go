@@ -116,7 +116,7 @@ func TestTheKeyGoesToHAAU3BaseURLsHostOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = c.Request(context.Background(), RawRequest{Method: "GET", Path: "https://api.haau3.com/v1/scheduling/publishers"})
+	_, err = c.Request(context.Background(), RawRequest{Method: "GET", Path: "https://api.haau3.com/v1/fhir/r4/metadata"})
 	if e := asError(t, err); e.Kind != KindNotSent || !strings.Contains(e.Error(), "refusing to send the API key to https://api.haau3.com") {
 		t.Errorf("%v", err)
 	}
@@ -187,7 +187,7 @@ func TestTheKeyIsNeverShown(t *testing.T) {
 
 func TestRequestRefusesAnotherHostAndSendsNothing(t *testing.T) {
 	rec := record(fhirReply(200, plan))
-	_, err := testClient(t, rec).Request(context.Background(), RawRequest{Method: "GET", Path: "https://evil.example/v1/scheduling/publishers"})
+	_, err := testClient(t, rec).Request(context.Background(), RawRequest{Method: "GET", Path: "https://evil.example/v1/fhir/r4/metadata"})
 	if e := asError(t, err); e.Kind != KindNotSent || !strings.Contains(e.Error(), "refusing to send the API key to https://evil.example") {
 		t.Errorf("%v", err)
 	}
