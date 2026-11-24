@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/haau3/haau3-go/compare/v0.4.0...v0.4.1) (2026-11-24)
+
+
+### Features
+
+* slot and schedule views, and search helpers that send every include ([#73](https://github.com/haau3/haau3-go/issues/73)) ([53eba3c](https://github.com/haau3/haau3-go/commit/53eba3c3ba1aecec7f11e5e0902c666feb87cdd4))
+
 ## [0.4.0](https://github.com/haau3/haau3-go/compare/v0.3.5...v0.4.0) (2026-11-24)
 
 
