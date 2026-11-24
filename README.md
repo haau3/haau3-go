@@ -504,6 +504,25 @@ when two entries could be the one meant, or the resource is not of the type you 
 pointer such as `*fhir.Organization`, or `fhir.Resource` for any type. A list parameter such as `Include`
 takes one value as a list of one.
 
+## A value a person typed
+
+`EscapeSearchValue` escapes FHIR's special characters in a search value (`\`, `,`, `$` and `|` each
+take a `\` before them), so the API reads what a person typed as the one value it is:
+
+```go
+typedCity := "Austin, TX" // what a person typed
+city := haau3.EscapeSearchValue(typedCity)
+page, err := client.SearchSlotWithIncludes(ctx, haau3.SearchSlotWithIncludesParams{LocationAddressCity: &city})
+if err != nil {
+	return err
+}
+fmt.Println(len(page.Entry))
+```
+
+Unescaped, a comma separates values the API reads as "or", so `Austin, TX` asks for two cities, and a
+trailing comma is refused with a `400`. Never escape a value you built with `,` or `|` on purpose,
+such as a list of codes or a `system|code` token.
+
 ## Slots and schedules
 
 A Slot search answers a FHIR Bundle whose matches are `Slot`s; each Slot's `Schedule`, and the
