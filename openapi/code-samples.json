@@ -2,70 +2,10 @@
   "overlay": "1.2.0",
   "info": {
     "title": "Go samples for every operation of the haau3 platform API",
-    "version": "1.0.0-preview.36"
+    "version": "1.0.0-preview.40"
   },
   "extends": "https://api.haau3.com/openapi.json",
   "actions": [
-    {
-      "target": "$.paths['/v1/scheduling/provider-locations'].get",
-      "update": {
-        "x-codeSamples": [
-          {
-            "lang": "go",
-            "label": "Go",
-            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfound, err := client.SearchProviderLocations(ctx, haau3.SearchProviderLocationsParams{Publisher: new(\"haau3\"), Limit: new(1)})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(found.Total)\n}\n"
-          }
-        ]
-      }
-    },
-    {
-      "target": "$.paths['/v1/scheduling/slots'].get",
-      "update": {
-        "x-codeSamples": [
-          {
-            "lang": "go",
-            "label": "Go",
-            "source": "package main\n\nimport (\n\t\"context\"\n\t\"encoding/json\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\t// Open appointment slots, here in Cambridge.\n\tfound, err := client.SearchSlots(ctx, haau3.SearchSlotsParams{City: new(\"Cambridge\"), State: new(\"MA\"), Limit: new(1)})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tif len(found.Slots) == 0 {\n\t\tfmt.Println(\"No open slots matched.\")\n\t\treturn\n\t}\n\tslot, err := json.MarshalIndent(found.Slots[0], \"\", \"  \")\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(string(slot))\n}\n"
-          }
-        ]
-      }
-    },
-    {
-      "target": "$.paths['/v1/scheduling/publishers'].get",
-      "update": {
-        "x-codeSamples": [
-          {
-            "lang": "go",
-            "label": "Go",
-            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfound, err := client.ListPublishers(ctx)\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(len(found.Publishers))\n}\n"
-          }
-        ]
-      }
-    },
-    {
-      "target": "$.paths['/v1/scheduling/service-types'].get",
-      "update": {
-        "x-codeSamples": [
-          {
-            "lang": "go",
-            "label": "Go",
-            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfound, err := client.ListServiceTypes(ctx, haau3.ListServiceTypesParams{})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(len(found.ServiceTypes))\n}\n"
-          }
-        ]
-      }
-    },
-    {
-      "target": "$.paths['/v1/scheduling/specialties'].get",
-      "update": {
-        "x-codeSamples": [
-          {
-            "lang": "go",
-            "label": "Go",
-            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfound, err := client.ListSpecialties(ctx, haau3.ListSpecialtiesParams{})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(len(found.Specialties))\n}\n"
-          }
-        ]
-      }
-    },
     {
       "target": "$.paths['/v1/fhir/r4/metadata'].get",
       "update": {
@@ -86,6 +26,54 @@
             "lang": "go",
             "label": "Go",
             "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tentry1 := haau3.Calls.CodeSystemLookup(haau3.CodeSystemLookupParams{Code: \"2345-7\", System: new(\"http://loinc.org\"), Property: []string{\"SHORTNAME\"}})\n\tentry2 := haau3.Calls.CodeSystemLookup(haau3.CodeSystemLookupParams{Code: \"8867-4\", System: new(\"http://loinc.org\"), Property: []string{\"SHORTNAME\"}})\n\tentry3 := haau3.Calls.ListInsurancePlanCounties(haau3.ListInsurancePlanCountiesParams{State: \"DE\"})\n\tif err := client.Batch(ctx, []haau3.Entry{entry1, entry2, entry3}); err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tshow(entry1.Result())\n\tshow(entry2.Result())\n\tshow(entry3.Result())\n}\n\n// show prints that one entry of the batch answered, or why it failed.\nfunc show[T any](_ T, err error) {\n\tif err != nil {\n\t\tfmt.Println(err)\n\t\treturn\n\t}\n\tfmt.Println(\"ok\")\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/Slot'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tbundle, err := client.SearchSlot(ctx, haau3.SearchSlotParams{ProviderIdentifier: new(\"http://hl7.org/fhir/sid/us-npi|2900000227\"), Include: []string{\"Slot:schedule\"}, IncludeIterate: []string{\"Schedule:actor\", \"PractitionerRole:practitioner\", \"HealthcareService:location\"}, Count: new(1)})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(len(bundle.Entry))\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/Slot/{id}'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tslot, err := client.ReadSlot(ctx, \"b12a0a00667b5e27ac040aa56d5d7c69\")\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tif slot.ID != nil {\n\t\tfmt.Println(*slot.ID)\n\t}\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/Schedule'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tbundle, err := client.SearchSchedule(ctx, haau3.SearchScheduleParams{ProviderIdentifier: new(\"http://hl7.org/fhir/sid/us-npi|2900000227\"), Include: []string{\"Schedule:actor\"}, IncludeIterate: []string{\"PractitionerRole:practitioner\", \"HealthcareService:location\"}})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(len(bundle.Entry))\n}\n"
+          }
+        ]
+      }
+    },
+    {
+      "target": "$.paths['/v1/fhir/r4/Schedule/{id}'].get",
+      "update": {
+        "x-codeSamples": [
+          {
+            "lang": "go",
+            "label": "Go",
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tschedule, err := client.ReadSchedule(ctx, \"e859c18cc8cc1a6ab1c9b7b63c5c60a1\")\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tif schedule.ID != nil {\n\t\tfmt.Println(*schedule.ID)\n\t}\n}\n"
           }
         ]
       }
