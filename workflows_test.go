@@ -1,6 +1,7 @@
 package haau3
 
 import (
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -85,6 +86,45 @@ func TestThePublicTextCheckRunsOnEditsAndNeverOnPullRequestTarget(t *testing.T) 
 	if !strings.Contains(text, "types: [opened, edited, reopened, synchronize]") || strings.Contains(text, "pull_request_target") ||
 		!strings.Contains(text, "--text-env PR_TITLE --text-env PR_BODY") || !strings.Contains(text, "scripts/test_check_public_text.py") {
 		t.Error(text)
+	}
+}
+
+// An edit to a closed pull request checks its title and description alone: its commits were checked
+// while it was open, and its branch may be gone. The step's own script runs, with the checker as echo.
+func TestAnEditToAClosedPullRequestChecksItsTitleAndDescriptionAlone(t *testing.T) {
+	text := workflows(t)["public-text.yml"]
+	if !strings.Contains(text, "STATE: ${{ github.event.pull_request.state }}") {
+		t.Fatal("the step does not read the pull request's state")
+	}
+	step := text[strings.LastIndex(text, "run: |\n")+len("run: |\n"):]
+	lines := strings.Split(step, "\n")
+	for i, line := range lines {
+		lines[i] = strings.TrimPrefix(line, "          ")
+	}
+	script := strings.ReplaceAll(strings.Join(lines, "\n"), "python3 -I scripts/check_public_text.py", "echo check")
+	ran := func(env ...string) string {
+		cmd := exec.Command("bash", "-c", script)
+		// A later value of a variable wins over an earlier one.
+		cmd.Env = append([]string{"AUTHOR=someone", "STATE=open", "BASE=b", "HEAD=h", "PATH=/usr/bin:/bin"}, env...)
+		out, err := cmd.Output()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(out)
+	}
+	for _, c := range []struct {
+		env  []string
+		want string
+	}{
+		{[]string{"STATE=closed"}, "check --no-files --text-env PR_TITLE --text-env PR_BODY\n"},
+		// The control: an open pull request's commits are read as well.
+		{[]string{"STATE=open"}, "check --commits b..h --text-env PR_TITLE --text-env PR_BODY\n"},
+		// And Dependabot's files alone, open or closed.
+		{[]string{"AUTHOR=dependabot[bot]", "STATE=closed"}, "check\n"},
+	} {
+		if got := ran(c.env...); got != c.want {
+			t.Errorf("%v: %q, want %q", c.env, got, c.want)
+		}
 	}
 }
 
