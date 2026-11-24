@@ -1,6 +1,7 @@
 package haau3
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -191,7 +192,38 @@ func requestKey(method, path string, query url.Values) string {
 	if err != nil {
 		unescaped = path
 	}
-	return method + " " + unescaped + " " + query.Encode() // Encode sorts by name
+	// The Sandbox reads the includes in any order (measured 2026-11-24: the Slot search's example with
+	// its _include:iterate values reordered answered 200), so the stand-in does too.
+	sorted := url.Values{}
+	for name, values := range query {
+		sorted[name] = values
+		if name == "_include" || name == "_include:iterate" {
+			sorted[name] = slices.Sorted(slices.Values(values))
+		}
+	}
+	return method + " " + unescaped + " " + sorted.Encode() // Encode sorts by name
+}
+
+// The stand-in reads the includes in any order, as the Sandbox does, and every other repeated value
+// in the order sent.
+func TestTheStandInReadsTheIncludesInAnyOrder(t *testing.T) {
+	key := func(q string) string {
+		v, err := url.ParseQuery(q)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return requestKey("GET", "/v1/fhir/r4/Slot", v)
+	}
+	if key("_include:iterate=a&_include:iterate=b&_include=c&_include=d") != key("_include:iterate=b&_include:iterate=a&_include=d&_include=c") {
+		t.Error("the includes' order counts")
+	}
+	if key("_include:iterate=a") == key("_include:iterate=a&_include:iterate=b") {
+		t.Error("another set of includes is the same request")
+	}
+	// The control: another repeated parameter keeps its order.
+	if key("start=ge1&start=lt2") == key("start=lt2&start=ge1") {
+		t.Error("start's order is ignored")
+	}
 }
 
 func (o specOperation) requestKey() string {
@@ -253,7 +285,12 @@ func expectedOutput(o specOperation) string {
 				slot.Location = r["name"]
 			}
 		}
-		out, err := json.MarshalIndent(slot, "", "  ")
+		var printed bytes.Buffer
+		enc := json.NewEncoder(&printed)
+		enc.SetEscapeHTML(false)
+		enc.SetIndent("", "  ")
+		err := enc.Encode(slot)
+		out := bytes.TrimSuffix(printed.Bytes(), []byte("\n"))
 		if err != nil {
 			return err.Error()
 		}
@@ -389,7 +426,8 @@ func TestTheSlotSearchIsTheFirstCall(t *testing.T) {
 		strings.Contains(source, "Include\"") || strings.Contains(source, "Include:") ||
 		!strings.Contains(source, "views, err := haau3.SlotViews(page)\n") ||
 		!strings.Contains(source, emptyGuard) ||
-		!strings.HasSuffix(source, "\tfmt.Println(string(out))\n}\n") {
+		!strings.Contains(source, "\tout.SetEscapeHTML(false)\n") ||
+		!strings.HasSuffix(source, "\tif err := out.Encode(slot); err != nil {\n\t\tlog.Fatal(err)\n\t}\n}\n") {
 		t.Errorf("the slot search is not the first call:\n%s", source)
 	}
 }
@@ -411,7 +449,7 @@ func TestTheFirstCallSaysSoWhenNoSlotMatches(t *testing.T) {
 			source = a.Update.Samples[0].Source
 		}
 	}
-	unguarded := strings.Replace(source, emptyGuard, "", 1)
+	unguarded := strings.Replace(source, emptyGuard, "\tfmt.Print()\n", 1)
 	if unguarded == source {
 		t.Fatal("the control did not change the first call")
 	}

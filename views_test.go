@@ -269,15 +269,35 @@ func TestAScheduleListsAPractitionerActorFirstThenTheOneBehindEachRoleAndOneName
 	}
 }
 
-func TestAScheduleLeavesOutAResourceThePageDoesNotHoldAndAsksTheAPIForNothing(t *testing.T) {
-	rec := record()
-	_ = testClient(t, rec)
+// The views take no client, so they can ask the API for nothing.
+func TestAScheduleLeavesOutAResourceThePageDoesNotHold(t *testing.T) {
 	v := mustScheduleViews(t, searchPage(resources(viewSchedule("s", "Location/a", "PractitionerRole/gone", "Device/d")), viewLocation("a")))[0]
 	if !slices.Equal(ids(v.Locations), []string{"a"}) || len(v.PractitionerRoles) != 0 {
 		t.Errorf("locations %v, roles %v", ids(v.Locations), ids(v.PractitionerRoles))
 	}
-	if rec.count() != 0 {
-		t.Errorf("%d requests", rec.count())
+}
+
+func TestAScheduleListsARoleItNamesTwiceOnce(t *testing.T) {
+	s := viewSchedule("s", "PractitionerRole/r", "HealthcareService/h", "PractitionerRole/r", "HealthcareService/h")
+	v := mustScheduleViews(t, searchPage(resources(s), viewRole("r", "p"), viewPractitioner("p"), viewService("h")))[0]
+	if !slices.Equal(ids(v.PractitionerRoles), []string{"r"}) || !slices.Equal(ids(v.HealthcareServices), []string{"h"}) {
+		t.Errorf("roles %v, services %v", ids(v.PractitionerRoles), ids(v.HealthcareServices))
+	}
+}
+
+// Nothing is replaced in place: the page reads the same before and after its views.
+func TestTheViewsReplaceNothingInThePage(t *testing.T) {
+	role := &fhir.PractitionerRole{ID: new("r"), Practitioner: ref("#p")}
+	s := viewSchedule("s", "#r", "Location/a")
+	s.Contained = []fhir.Resource{role, viewPractitioner("p")}
+	x := viewSlot("x", "s")
+	for _, page := range []*fhir.Bundle{exampleAnswer(t, "searchSlot"), searchPage(resources(x), s, viewLocation("a"))} {
+		before, _ := json.Marshal(page)
+		mustSlotViews(t, page)
+		mustScheduleViews(t, page)
+		if after, _ := json.Marshal(page); string(after) != string(before) {
+			t.Errorf("the page changed:\n%s\n%s", before, after)
+		}
 	}
 }
 
@@ -308,6 +328,27 @@ func TestContainedResourcesResolveFromTheEntryThatContainsThemAndWhatTheyNameToo
 	}
 	if !slices.Equal(ids(v.Practitioners), []string{"p"}) || !slices.Equal(ids(v.Locations), []string{"a", "b"}) {
 		t.Errorf("practitioners %v, locations %v", ids(v.Practitioners), ids(v.Locations))
+	}
+}
+
+// A contained resource names another of its container's contained resources by #id: the role's #p is
+// the Practitioner the Schedule (or the Slot) contains, not one the role contains.
+func TestAContainedResourceNamingASiblingByIDResolvesInItsContainer(t *testing.T) {
+	role := &fhir.PractitionerRole{ID: new("r"), Practitioner: ref("#p")}
+	p := viewPractitioner("p")
+	s := viewSchedule("s", "#r")
+	s.Contained = []fhir.Resource{role, p}
+	v := mustScheduleViews(t, searchPage(resources(s)))[0]
+	if len(v.PractitionerRoles) != 1 || v.PractitionerRoles[0] != role || len(v.Practitioners) != 1 || v.Practitioners[0] != p {
+		t.Errorf("roles %v, practitioners %v", ids(v.PractitionerRoles), ids(v.Practitioners))
+	}
+	inSlot := viewSchedule("s", "#r")
+	sibling := viewPractitioner("p")
+	x := viewSlot("x", "s")
+	x.Schedule, x.Contained = ref("#s"), []fhir.Resource{inSlot, role, sibling}
+	sv := mustSlotViews(t, searchPage(resources(x)))[0]
+	if sv.Schedule != inSlot || len(sv.Practitioners) != 1 || sv.Practitioners[0] != sibling {
+		t.Errorf("schedule %v, practitioners %v", sv.Schedule, ids(sv.Practitioners))
 	}
 }
 
@@ -363,6 +404,14 @@ func TestThePlaceIsVirtualWhenAnyLocationIsViAndPhysicalOtherwise(t *testing.T) 
 	}
 }
 
+func TestThePlaceIsVirtualThroughAHealthcareServicesLocation(t *testing.T) {
+	vi := viewLocation("v", fhir.Coding{System: new(physicalType), Code: new("vi")})
+	v := mustScheduleViews(t, searchPage(resources(viewSchedule("s", "HealthcareService/h")), viewService("h", "v"), vi))[0]
+	if !v.Virtual || !slices.Equal(ids(v.Locations), []string{"v"}) {
+		t.Errorf("virtual %v, locations %v", v.Virtual, ids(v.Locations))
+	}
+}
+
 func TestThePlaceIsVirtualOnlyForViInHL7sPhysicalTypeCodeSystem(t *testing.T) {
 	if virtualOf(t, viewLocation("a", fhir.Coding{System: new("http://example.org/other"), Code: new("vi")})) {
 		t.Error("vi in another code system is virtual")
@@ -392,15 +441,17 @@ func TestASlotCarriesItsBookingLinkPhoneAndPatientTypeFromSMARTSchedulingLinks10
 }
 
 func TestASlotCarriesNoneUnderSMARTsEarlierRegistryURLs(t *testing.T) {
+	// Each carries the value 1.0.0 reads, so only the URL keeps it out.
 	v := viewOf(t,
 		fhir.Extension{URL: new(earlierURL + "booking-deep-link"), ValueURL: new("https://book.example/x")},
-		fhir.Extension{URL: new(earlierURL + "booking-phone"), ValueString: new("+1-555-0100")},
+		fhir.Extension{URL: new(earlierURL + "booking-phone"), ValueContactPoint: &fhir.ContactPoint{System: new("phone"), Value: new("+1-555-0100")}},
+		fhir.Extension{URL: new(earlierURL + "patient-type"), ValueCoding: &fhir.Coding{System: new(accepting), Code: new("newpt")}},
 	)
-	if v.BookingLink != "" || v.BookingPhone != "" {
-		t.Errorf("%q %q", v.BookingLink, v.BookingPhone)
+	if v.BookingLink != "" || v.BookingPhone != "" || v.PatientType != "" {
+		t.Errorf("%q %q %q", v.BookingLink, v.BookingPhone, v.PatientType)
 	}
-	// The resource still carries both, as the API served it.
-	if len(v.Slot.Extension) != 2 {
+	// The resource still carries all three, as the API served it.
+	if len(v.Slot.Extension) != 3 {
 		t.Errorf("%d extensions", len(v.Slot.Extension))
 	}
 }
@@ -544,8 +595,8 @@ func TestTheSearchHelpersPassACallsOptionsOnAsTheSearchDoes(t *testing.T) {
 	}
 }
 
-// served is every include a search serves, as the pinned spec lists them.
-func served(t *testing.T, operationID string) []string {
+// served is each include parameter's values, as the pinned spec lists them for a search.
+func served(t *testing.T, operationID string) map[string][]string {
 	t.Helper()
 	var doc struct {
 		Paths map[string]map[string]struct {
@@ -562,7 +613,7 @@ func served(t *testing.T, operationID string) []string {
 		} `json:"paths"`
 	}
 	readJSON(t, filepath.Join("openapi", "openapi.json"), &doc)
-	var names []string
+	enums := map[string][]string{}
 	for _, item := range doc.Paths {
 		op, ok := item["get"]
 		if !ok || op.OperationID != operationID {
@@ -570,23 +621,28 @@ func served(t *testing.T, operationID string) []string {
 		}
 		for _, p := range op.Parameters {
 			if p.Name == "_include" || p.Name == "_include:iterate" {
-				names = append(append(names, p.Schema.Items.Enum...), p.Schema.Enum...)
+				enums[p.Name] = slices.Sorted(slices.Values(append(slices.Clone(p.Schema.Items.Enum), p.Schema.Enum...)))
 			}
 		}
 	}
-	slices.Sort(names)
-	return slices.Compact(names)
+	return enums
 }
 
 // An include the API serves later fails this until the helper sends it.
 func TestTheSearchHelpersSendEveryIncludeTheirSearchServesAsTheSpecListsThem(t *testing.T) {
+	// Each parameter on its own: _include is the _include enum, and _include:iterate the rest of the
+	// iterate enum, which also lists the first include.
 	for id, sent := range map[string]includes.Includes{"searchSlot": includes.Slot, "searchSchedule": includes.Schedule} {
-		got := slices.Sorted(slices.Values(sent.All()))
-		if want := served(t, id); !slices.Equal(got, want) {
-			t.Errorf("%s: the helper sends %v, the search serves %v", id, got, want)
+		enums := served(t, id)
+		if got := slices.Sorted(slices.Values(sent.Include)); !slices.Equal(got, enums["_include"]) {
+			t.Errorf("%s: the helper's _include is %v, the search serves %v", id, got, enums["_include"])
+		}
+		iterate := slices.DeleteFunc(slices.Clone(enums["_include:iterate"]), func(v string) bool { return slices.Contains(enums["_include"], v) })
+		if got := slices.Sorted(slices.Values(sent.Iterate)); !slices.Equal(got, iterate) {
+			t.Errorf("%s: the helper's _include:iterate is %v, the search serves %v", id, got, iterate)
 		}
 	}
-	if got := served(t, "searchSlot"); len(got) != 4 {
+	if got := served(t, "searchSlot")["_include:iterate"]; len(got) != 4 {
 		t.Errorf("the Slot search serves %v", got)
 	}
 	if !reflect.DeepEqual(includes.ByOperation, map[string]includes.Includes{"searchSlot": includes.Slot, "searchSchedule": includes.Schedule}) {
@@ -624,13 +680,51 @@ func TestTheSearchHelpersParametersAreTheSearchsLessItsIncludes(t *testing.T) {
 	}
 }
 
+// filled is a value of t with every field set, each to a value of its own.
+func filled(t reflect.Type) reflect.Value {
+	v := reflect.New(t).Elem()
+	for i := range t.NumField() {
+		f := v.Field(i)
+		mark := "field-" + t.Field(i).Name
+		switch f.Interface().(type) {
+		case *string:
+			f.Set(reflect.ValueOf(&mark))
+		case []string:
+			f.Set(reflect.ValueOf([]string{mark}))
+		case *int:
+			n := 100 + i
+			f.Set(reflect.ValueOf(&n))
+		case *bool:
+			yes := true
+			f.Set(reflect.ValueOf(&yes))
+		default:
+			panic("a field of a type filled does not set: " + t.Field(i).Name)
+		}
+	}
+	return v
+}
+
 // Each field of the helper's parameters reaches the search's, and the includes are a copy, so a
 // caller cannot change what the next call sends.
 func TestTheSearchHelpersCopyEveryFieldAndANewListOfIncludes(t *testing.T) {
-	p := SearchSlotWithIncludesParams{Status: new("busy"), Start: []string{"ge2027-01-01"}, Count: new(5), Page: new("c")}
-	got := p.search(includes.Slot)
-	if deref(got.Status) != "busy" || !slices.Equal(got.Start, []string{"ge2027-01-01"}) || *got.Count != 5 || deref(got.Page) != "c" {
-		t.Errorf("%+v", got)
+	for _, c := range []struct {
+		params any
+		search func(any) any
+	}{
+		{filled(reflect.TypeFor[SearchSlotWithIncludesParams]()).Interface(), func(p any) any { return p.(SearchSlotWithIncludesParams).search(includes.Slot) }},
+		{filled(reflect.TypeFor[SearchScheduleWithIncludesParams]()).Interface(), func(p any) any { return p.(SearchScheduleWithIncludesParams).search(includes.Schedule) }},
+	} {
+		given, sent := reflect.ValueOf(c.params), reflect.ValueOf(c.search(c.params))
+		for i := range given.NumField() {
+			name := given.Type().Field(i).Name
+			if !reflect.DeepEqual(given.Field(i).Interface(), sent.FieldByName(name).Interface()) {
+				t.Errorf("%s: %s did not reach the search", given.Type(), name)
+			}
+		}
+	}
+	got := SearchSlotWithIncludesParams{}.search(includes.Slot)
+	if !slices.Equal(got.Include, includes.Slot.Include) || !slices.Equal(got.IncludeIterate, includes.Slot.Iterate) {
+		t.Errorf("includes %v %v", got.Include, got.IncludeIterate)
 	}
 	got.Include[0] = "changed"
 	if includes.Slot.Include[0] != "Slot:schedule" {

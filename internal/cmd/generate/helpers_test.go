@@ -102,9 +102,21 @@ func TestTheGeneratorStopsWhenASearchAHelperMakesIsGoneOrTakesNoIncludesAsAList(
 		t.Errorf("a search gone: %v", err)
 	}
 	for _, wire := range []string{"_include", "_include:iterate"} {
+		required := *s
+		required.Operations = slices.Clone(s.Operations)
+		i := slices.IndexFunc(required.Operations, func(o operation) bool { return o.ID == "searchSlot" })
+		required.Operations[i].Query = slices.Clone(required.Operations[i].Query)
+		for j := range required.Operations[i].Query {
+			if required.Operations[i].Query[j].Wire == wire {
+				required.Operations[i].Query[j].Required = true
+			}
+		}
+		if err := checkHelpers(&required); err == nil || !strings.Contains(err.Error(), "sends "+wire) {
+			t.Errorf("%s required: %v", wire, err)
+		}
 		single := *s
 		single.Operations = slices.Clone(s.Operations)
-		i := slices.IndexFunc(single.Operations, func(o operation) bool { return o.ID == "searchSlot" })
+		i = slices.IndexFunc(single.Operations, func(o operation) bool { return o.ID == "searchSlot" })
 		single.Operations[i].Query = slices.Clone(single.Operations[i].Query)
 		for j := range single.Operations[i].Query {
 			if single.Operations[i].Query[j].Wire == wire {

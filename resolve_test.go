@@ -2,6 +2,9 @@ package haau3
 
 import (
 	"errors"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -145,20 +148,120 @@ func TestResolveGivesARelativeReferenceNoMeaningFromAnEntryAtAURNUUIDAsFHIRSays(
 	}
 }
 
-func TestResolveRefusesAFromThatIsNotAnEntryOfTheBundle(t *testing.T) {
+func TestResolveRefusesARelativeReferenceFromAResourceNotInTheBundle(t *testing.T) {
 	page, service, _, _ := pharmacyPage()
 	copied := *service
 	_, err := Resolve[fhir.Resource](page, service.ProvidedBy, &copied)
-	notSentWith(t, err, "not an entry of this Bundle")
-	// A resource held as a value has no identity: it is no entry, and comparing it never panics.
+	notSentWith(t, err, "not in this Bundle")
+	// A resource held as a value has no identity: it is not in the Bundle, and comparing it never panics.
 	_, err = Resolve[fhir.Resource](page, service.ProvidedBy, copied)
-	notSentWith(t, err, "not an entry of this Bundle")
+	notSentWith(t, err, "not in this Bundle")
 	valued := &fhir.Bundle{Entry: []fhir.BundleEntry{entryAt(apiFHIRBase+"/Organization/o", fhir.Organization{ID: new("o")}, "")}}
 	if got, err := Resolve[fhir.Resource](valued, ref("Organization/o"), nil); err != nil || got == nil {
 		t.Errorf("a resource held as a value, found by address: %v %v", got, err)
 	}
 	_, err = Resolve[fhir.Resource](valued, ref("Organization/o"), valued.Entry[0].Resource)
-	notSentWith(t, err, "not an entry of this Bundle")
+	notSentWith(t, err, "not in this Bundle")
+}
+
+// A contained resource's references resolve from the entry that contains it, as FHIR says: #p is
+// the container's other contained resource, # the container, and a relative reference is resolved
+// against the container's address.
+func TestResolveFromAContainedResourceResolvesFromTheEntryThatContainsIt(t *testing.T) {
+	p := &fhir.Practitioner{ID: new("p")}
+	r := &fhir.PractitionerRole{ID: new("r"), Practitioner: ref("#p")}
+	r2 := &fhir.PractitionerRole{ID: new("r2"), Practitioner: ref("Practitioner/q")}
+	s := &fhir.Schedule{ID: new("s"), Contained: []fhir.Resource{r, p, r2}}
+	q := &fhir.Practitioner{ID: new("q")}
+	other := &fhir.Practitioner{ID: new("q")}
+	page := &fhir.Bundle{Type: new("searchset"), Entry: []fhir.BundleEntry{
+		entryAt(apiFHIRBase+"/Schedule/s", s, "match"),
+		entryAt(apiFHIRBase+"/Practitioner/q", q, "include"),
+		entryAt("https://other.example/fhir/Practitioner/q", other, "include"),
+	}}
+	if got, err := Resolve[*fhir.Practitioner](page, r.Practitioner, r); err != nil || got != p {
+		t.Errorf("#p from a contained role: %v %v", got, err)
+	}
+	if got, err := Resolve[*fhir.Schedule](page, ref("#"), r); err != nil || got != s {
+		t.Errorf("# from a contained role: %v %v", got, err)
+	}
+	if got, err := Resolve[*fhir.Practitioner](page, r2.Practitioner, r2); err != nil || got != q {
+		t.Errorf("a relative reference from a contained role: %v %v", got, err)
+	}
+	// The control: from the entry itself, #r is its contained role.
+	if got, err := Resolve[*fhir.PractitionerRole](page, ref("#r"), s); err != nil || got != r {
+		t.Errorf("#r from the Schedule: %v %v", got, err)
+	}
+	// From a resource outside the Bundle, # references are looked up in that resource itself.
+	loose := &fhir.Schedule{Contained: []fhir.Resource{r}}
+	if got, err := Resolve[*fhir.PractitionerRole](page, ref("#r"), loose); err != nil || got != r {
+		t.Errorf("#r from a resource outside the Bundle: %v %v", got, err)
+	}
+}
+
+// Without from, a relative reference names an entry at an address with no version; one at a
+// versioned address is a version, not the resource.
+func TestResolveWithoutFromSkipsAnEntryAtAVersionedAddress(t *testing.T) {
+	versioned := &fhir.Bundle{Entry: []fhir.BundleEntry{entryAt(apiFHIRBase+"/Organization/o/_history/1", &fhir.Organization{ID: new("o")}, "")}}
+	if got, err := Resolve[fhir.Resource](versioned, ref("Organization/o"), nil); err != nil || got != nil {
+		t.Errorf("%v %v", got, err)
+	}
+}
+
+// A typed nil (a nil *fhir.Slot in an entry) holds no resource: it is no match, and nothing panics.
+func TestATypedNilEntryIsNoMatchAndNothingPanics(t *testing.T) {
+	page := &fhir.Bundle{Type: new("searchset"), Entry: []fhir.BundleEntry{
+		{Resource: (*fhir.Slot)(nil)}, {Resource: (*fhir.Schedule)(nil)},
+	}}
+	if got := Matches[*fhir.Slot](page); len(got) != 0 {
+		t.Errorf("matches %v", got)
+	}
+	if got := Matches[fhir.Resource](page); len(got) != 0 {
+		t.Errorf("matches %v", got)
+	}
+	slots, err := SlotViews(page)
+	schedules, err2 := ScheduleViews(page)
+	if err != nil || err2 != nil || len(slots)+len(schedules) != 0 {
+		t.Errorf("%v %v %v %v", slots, schedules, err, err2)
+	}
+}
+
+// A value type compiles as neither function's type, since a Bundle holds pointers and would never
+// match it; a pointer and fhir.Resource compile.
+func TestAValueResourceTypeDoesNotCompileAsResolveOrMatchesType(t *testing.T) {
+	if testing.Short() {
+		t.Skip("builds a module")
+	}
+	root, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	vet := func(body string) (string, error) {
+		dir := t.TempDir()
+		mod := "module typecheck\n\ngo 1.26.0\n\nrequire github.com/haau3/haau3-go v0.0.0\n\nreplace github.com/haau3/haau3-go => " + root + "\n"
+		src := "package typecheck\n\nimport (\n\t\"github.com/haau3/haau3-go\"\n\t\"github.com/haau3/haau3-go/fhir\"\n)\n\nfunc f(page *fhir.Bundle) {\n" + body + "}\n"
+		for name, text := range map[string]string{"go.mod": mod, "f.go": src} {
+			if err := os.WriteFile(filepath.Join(dir, name), []byte(text), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		cmd := exec.Command("go", "vet", "./...")
+		cmd.Dir = dir
+		out, err := cmd.CombinedOutput()
+		return string(out), err
+	}
+	for _, body := range []string{
+		"\t_ = haau3.Matches[fhir.Slot](page)\n",
+		"\t_, _ = haau3.Resolve[fhir.Organization](page, nil, nil)\n",
+	} {
+		if out, err := vet(body); err == nil || !strings.Contains(out, "does not satisfy comparable") {
+			t.Errorf("%s compiled, or failed otherwise: %v\n%s", strings.TrimSpace(body), err, out)
+		}
+	}
+	// The control: a pointer and fhir.Resource compile.
+	if out, err := vet("\t_ = haau3.Matches[*fhir.Slot](page)\n\t_ = haau3.Matches[fhir.Resource](page)\n\t_, _ = haau3.Resolve[*fhir.Organization](page, nil, nil)\n"); err != nil {
+		t.Errorf("the control did not compile: %v\n%s", err, out)
+	}
 }
 
 func TestResolveFindsAContainedResourceInFromAndRefusesToGuessWithoutIt(t *testing.T) {

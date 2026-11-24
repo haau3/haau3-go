@@ -91,6 +91,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -100,6 +101,7 @@ import (
 )
 
 var (
+	_ = os.Stdout
 	_ = errors.As
 	_ = json.Marshal
 	_ = fmt.Sprint
