@@ -5,8 +5,10 @@ package haau3
 import (
 	"context"
 	"regexp"
+	"slices"
 
 	"github.com/haau3/haau3-go/fhir"
+	"github.com/haau3/haau3-go/internal/includes"
 )
 
 // SpecVersion is the version of the API's spec this release was generated from.
@@ -925,6 +927,88 @@ func (p SearchScheduleParams) query() (query, error) {
 	return q, nil
 }
 
+// SearchScheduleWithIncludesParams holds SearchScheduleWithIncludes's query parameters:
+// SearchSchedule's, less `_include` and `_include:iterate`, which SearchScheduleWithIncludes sends
+// itself, so a value that holds an include does not compile. A nil field is not sent.
+type SearchScheduleWithIncludesParams struct {
+	// ServiceType is `service-type`. The Schedule's service type, its own `serviceType`. Any of FHIR's
+	// token forms: `code`, `system|code`, `|code` (a code with no system) or `system|` (any code in
+	// that system), several separated by commas for any of them.
+	ServiceType *string
+
+	// Specialty is `specialty`. The Schedule's own specialty, FHIR's Schedule.specialty. For a
+	// specialty the SMART Scheduling Links `schedule-specialty` extension or the provider states, use
+	// `provider-specialty`. Any of FHIR's token forms: `code`, `system|code`, `|code` (a code with no
+	// system) or `system|` (any code in that system), several separated by commas for any of them.
+	Specialty *string
+
+	// ProviderSpecialty is `provider-specialty`. A specialty of the provider, as the Schedule states
+	// it (its own `specialty` or the SMART Scheduling Links `schedule-specialty` extension) or as the
+	// provider itself does (a PractitionerRole or HealthcareService the Schedule names). Any of FHIR's
+	// token forms: `code`, `system|code`, `|code` (a code with no system) or `system|` (any code in
+	// that system), several separated by commas for any of them.
+	ProviderSpecialty *string
+
+	// ProviderIdentifier is `provider-identifier`. An identifier, such as an NPI
+	// (`http://hl7.org/fhir/sid/us-npi|1234567890`), of the provider the Schedule names: a
+	// Practitioner, a PractitionerRole or the Practitioner behind it, or a HealthcareService,
+	// whichever the publisher used. Any of FHIR's token forms: `code`, `system|code`, `|code` (a code
+	// with no system) or `system|` (any code in that system), several separated by commas for any of
+	// them.
+	ProviderIdentifier *string
+
+	// LocationAddressCity is `location-address-city`. The city of a Location the Schedule names, or of
+	// the Location of a HealthcareService it names: the start of the city's name, ignoring case and
+	// accents: `San Jose` finds San José. Several separated by commas.
+	LocationAddressCity *string
+
+	// LocationAddressState is `location-address-state`. The state of a Location the Schedule names, or
+	// of the Location of a HealthcareService it names, matched as `location-address-city` is.
+	LocationAddressState *string
+
+	// LocationPhysicalType is `location-physical-type`. The physicalType of a Location the Schedule
+	// names, or of the Location of a HealthcareService it names: `vi` for a virtual one, from
+	// `http://terminology.hl7.org/CodeSystem/location-physical-type`. Any of FHIR's token forms:
+	// `code`, `system|code`, `|code` (a code with no system) or `system|` (any code in that system),
+	// several separated by commas for any of them.
+	LocationPhysicalType *string
+
+	// Source is `_source`. The Schedule's `meta.source`: where the publisher published it, its feed's
+	// address followed by `Schedule/` and the publisher's own id. Several separated by commas.
+	Source *string
+
+	// SourceBelow is `_source:below`. The start of the Schedule's `meta.source`: a feed's address, for
+	// every Schedule it published. Several separated by commas.
+	SourceBelow *string
+
+	// Count is `_count`. Page size, 1 to 100, 25 by default. A larger value is refused rather than
+	// quietly reduced.
+	Count *int
+
+	// Page is `page`. The next page's cursor, from the `next` link of the page before. It is opaque
+	// and belongs to the one search; follow the link rather than building one.
+	Page *string
+}
+
+// search is these parameters as SearchSchedule's, with the includes given.
+func (p SearchScheduleWithIncludesParams) search(with includes.Includes) SearchScheduleParams {
+	return SearchScheduleParams{
+		ServiceType:          p.ServiceType,
+		Specialty:            p.Specialty,
+		ProviderSpecialty:    p.ProviderSpecialty,
+		ProviderIdentifier:   p.ProviderIdentifier,
+		LocationAddressCity:  p.LocationAddressCity,
+		LocationAddressState: p.LocationAddressState,
+		LocationPhysicalType: p.LocationPhysicalType,
+		Source:               p.Source,
+		SourceBelow:          p.SourceBelow,
+		Include:              slices.Clone(with.Include),
+		IncludeIterate:       slices.Clone(with.Iterate),
+		Count:                p.Count,
+		Page:                 p.Page,
+	}
+}
+
 // SearchSlotParams holds SearchSlot's query parameters. A nil field is not sent.
 type SearchSlotParams struct {
 	// Status is `status`. The Slot's status: `free`, `busy`, `busy-unavailable`, `busy-tentative` or
@@ -1057,6 +1141,132 @@ func (p SearchSlotParams) query() (query, error) {
 	q.int("_count", p.Count)
 	q.string("page", p.Page)
 	return q, nil
+}
+
+// SearchSlotWithIncludesParams holds SearchSlotWithIncludes's query parameters: SearchSlot's, less
+// `_include` and `_include:iterate`, which SearchSlotWithIncludes sends itself, so a value that
+// holds an include does not compile. A nil field is not sent.
+type SearchSlotWithIncludesParams struct {
+	// Status is `status`. The Slot's status: `free`, `busy`, `busy-unavailable`, `busy-tentative` or
+	// `entered-in-error`, several separated by commas. With no `status`, a search returns `free`
+	// Slots, and the `self` link shows it.
+	Status *string
+
+	// Start is `start`. When the Slot starts, with a prefix `ge`, `gt`, `le` or `lt`, or none for that
+	// day, hour or minute: `start=ge2026-12-01&start=lt2026-12-08` for one week. Any precision from a
+	// year to a second; a value with no time is a day in UTC, and a time needs its offset (`Z` or
+	// `-05:00`). Send it twice for a window. With no `start`, a search returns Slots starting from
+	// now, and the `self` link shows the moment.
+	Start []string
+
+	// AppointmentType is `appointment-type`. The Slot's appointment type. Any of FHIR's token forms:
+	// `code`, `system|code`, `|code` (a code with no system) or `system|` (any code in that system),
+	// several separated by commas for any of them.
+	AppointmentType *string
+
+	// Schedule is `schedule`. The Slot's Schedule, as `Schedule/{id}`, its id alone, or its address on
+	// this base; several separated by commas. Chained once, as `schedule.service-type`.
+	Schedule *string
+
+	// ServiceType is `service-type`. The Slot's own service type, FHIR's Slot.serviceType. A Slot that
+	// names none matches no value: find the Slots of a Schedule offering a service with
+	// `schedule.service-type`. Any of FHIR's token forms: `code`, `system|code`, `|code` (a code with
+	// no system) or `system|` (any code in that system), several separated by commas for any of them.
+	ServiceType *string
+
+	// ScheduleServiceType is `schedule.service-type`. The service type of the Slot's Schedule, FHIR's
+	// chained `schedule` and the Schedule's `service-type`: every Slot of a Schedule offering it,
+	// whether or not the Slot names a service type of its own. Any of FHIR's token forms: `code`,
+	// `system|code`, `|code` (a code with no system) or `system|` (any code in that system), several
+	// separated by commas for any of them.
+	ScheduleServiceType *string
+
+	// Specialty is `specialty`. The Slot's own specialty, FHIR's Slot.specialty. For a specialty its
+	// Schedule or its provider states, use `provider-specialty`. Any of FHIR's token forms: `code`,
+	// `system|code`, `|code` (a code with no system) or `system|` (any code in that system), several
+	// separated by commas for any of them.
+	Specialty *string
+
+	// ProviderSpecialty is `provider-specialty`. A specialty of the provider, as the Slot states it,
+	// as its Schedule does (its own `specialty` or the SMART Scheduling Links `schedule-specialty`
+	// extension), or as the provider itself does (a PractitionerRole or HealthcareService the Schedule
+	// names). Any of FHIR's token forms: `code`, `system|code`, `|code` (a code with no system) or
+	// `system|` (any code in that system), several separated by commas for any of them.
+	ProviderSpecialty *string
+
+	// ProviderIdentifier is `provider-identifier`. An identifier, such as an NPI
+	// (`http://hl7.org/fhir/sid/us-npi|1234567890`), of the provider the Slot's Schedule names: a
+	// Practitioner, a PractitionerRole or the Practitioner behind it, or a HealthcareService,
+	// whichever the publisher used. Any of FHIR's token forms: `code`, `system|code`, `|code` (a code
+	// with no system) or `system|` (any code in that system), several separated by commas for any of
+	// them.
+	ProviderIdentifier *string
+
+	// PatientType is `patient-type`. Who the Slot accepts, from the SMART Scheduling Links
+	// `patient-type` extension: `newpt`, `existptonly` and the other codes of
+	// `http://terminology.hl7.org/CodeSystem/accepting-patients`. A Slot that carries none matches no
+	// value. A Slot not accepting patients (`nopt`) is never served. Any of FHIR's token forms:
+	// `code`, `system|code`, `|code` (a code with no system) or `system|` (any code in that system),
+	// several separated by commas for any of them.
+	PatientType *string
+
+	// LocationAddressCity is `location-address-city`. The city of a Location the Slot's Schedule
+	// names, or of the Location of a HealthcareService it names: the start of the city's name,
+	// ignoring case and accents: `San Jose` finds San José. Several separated by commas.
+	LocationAddressCity *string
+
+	// LocationAddressState is `location-address-state`. The state of a Location the Slot's Schedule
+	// names, or of the Location of a HealthcareService it names, matched as `location-address-city`
+	// is.
+	LocationAddressState *string
+
+	// LocationPhysicalType is `location-physical-type`. The physicalType of a Location the Slot's
+	// Schedule names, or of the Location of a HealthcareService it names: `vi` for a virtual one, from
+	// `http://terminology.hl7.org/CodeSystem/location-physical-type`. Any of FHIR's token forms:
+	// `code`, `system|code`, `|code` (a code with no system) or `system|` (any code in that system),
+	// several separated by commas for any of them.
+	LocationPhysicalType *string
+
+	// Source is `_source`. The Slot's `meta.source`: where the publisher published it, its feed's
+	// address followed by `Slot/` and the publisher's own id. Several separated by commas.
+	Source *string
+
+	// SourceBelow is `_source:below`. The start of the Slot's `meta.source`: a feed's address, for
+	// every Slot it published. Several separated by commas.
+	SourceBelow *string
+
+	// Count is `_count`. Page size, 1 to 100, 25 by default. A larger value is refused rather than
+	// quietly reduced.
+	Count *int
+
+	// Page is `page`. The next page's cursor, from the `next` link of the page before. It is opaque
+	// and belongs to the one search; follow the link rather than building one.
+	Page *string
+}
+
+// search is these parameters as SearchSlot's, with the includes given.
+func (p SearchSlotWithIncludesParams) search(with includes.Includes) SearchSlotParams {
+	return SearchSlotParams{
+		Status:               p.Status,
+		Start:                p.Start,
+		AppointmentType:      p.AppointmentType,
+		Schedule:             p.Schedule,
+		ServiceType:          p.ServiceType,
+		ScheduleServiceType:  p.ScheduleServiceType,
+		Specialty:            p.Specialty,
+		ProviderSpecialty:    p.ProviderSpecialty,
+		ProviderIdentifier:   p.ProviderIdentifier,
+		PatientType:          p.PatientType,
+		LocationAddressCity:  p.LocationAddressCity,
+		LocationAddressState: p.LocationAddressState,
+		LocationPhysicalType: p.LocationPhysicalType,
+		Source:               p.Source,
+		SourceBelow:          p.SourceBelow,
+		Include:              slices.Clone(with.Include),
+		IncludeIterate:       slices.Clone(with.Iterate),
+		Count:                p.Count,
+		Page:                 p.Page,
+	}
 }
 
 // ValueSetExpandParams holds ValueSetExpand's query parameters. A nil field is not sent.

@@ -50,31 +50,40 @@ goroutines at once.
 ## A first call
 
 ```go
-// Open appointment slots of one provider, found by NPI.
-bundle, err := client.SearchSlot(ctx, haau3.SearchSlotParams{
+// Open appointment slots of one provider, found by NPI, each with its schedule, location and provider.
+page, err := client.SearchSlotWithIncludes(ctx, haau3.SearchSlotWithIncludesParams{
 	ProviderIdentifier: new("http://hl7.org/fhir/sid/us-npi|2900000227"),
-	Include:            []string{"Slot:schedule"},
-	IncludeIterate:     []string{"Schedule:actor", "PractitionerRole:practitioner", "HealthcareService:location"},
 	Count:              new(1),
 })
 if err != nil {
 	return err
 }
-var slots []*fhir.Slot
-for _, entry := range bundle.Entry {
-	if slot, ok := entry.Resource.(*fhir.Slot); ok {
-		slots = append(slots, slot)
-	}
-}
-if len(slots) == 0 {
-	fmt.Println("No open slots matched.")
-	return nil
-}
-slot, err := json.MarshalIndent(slots[0], "", "  ")
+views, err := haau3.SlotViews(page)
 if err != nil {
 	return err
 }
-fmt.Println(string(slot))
+if len(views) == 0 {
+	fmt.Println("No open slots matched.")
+	return nil
+}
+view := views[0]
+slot := struct {
+	Start        *string `json:"start"`
+	Practitioner *string `json:"practitioner,omitempty"`
+	Location     *string `json:"location,omitempty"`
+	BookingLink  string  `json:"bookingLink,omitempty"`
+}{Start: view.Slot.Start, BookingLink: view.BookingLink}
+if len(view.Practitioners) > 0 && len(view.Practitioners[0].Name) > 0 {
+	slot.Practitioner = view.Practitioners[0].Name[0].Text
+}
+if len(view.Locations) > 0 {
+	slot.Location = view.Locations[0].Name
+}
+out, err := json.MarshalIndent(slot, "", "  ")
+if err != nil {
+	return err
+}
+fmt.Println(string(out))
 ```
 
 Every method takes a `context.Context` first, and its deadline or cancellation bounds the whole
@@ -408,6 +417,101 @@ for resource, err := range client.Resources(ctx, first) {
 It gives each entry whose search mode is `match`, or says none. A resource an `_include` or
 `_revinclude` brought, and a search's own `OperationOutcome`, are not among them; `Pages` gives
 every entry.
+
+`Matches` gives one page's matches of a type, typed, with no request, and `Resolve` finds the
+resource a reference names in that page, such as one an `_include` brought, typed as the type you
+name:
+
+```go
+page, err := client.SearchHealthcareService(ctx, haau3.SearchHealthcareServiceParams{
+	ServiceCategory:           new("pharm"),
+	LocationAddressState:      new("FL"),
+	LocationAddressPostalcode: new("33131"),
+	Include:                   []string{"HealthcareService:organization", "HealthcareService:location"},
+})
+if err != nil {
+	return err
+}
+for _, pharmacy := range haau3.Matches[*fhir.HealthcareService](page) {
+	organization, err := haau3.Resolve[*fhir.Organization](page, pharmacy.ProvidedBy, pharmacy)
+	if err != nil {
+		return err
+	}
+	if organization != nil && organization.Name != nil {
+		fmt.Println(*organization.Name)
+	}
+}
+```
+
+`Resolve` follows FHIR's rules for references in a Bundle: an absolute reference is the entry with
+that `fullUrl`; a relative one is resolved against the address of the entry holding it when you pass
+that resource as `from`, and otherwise is the one entry whose address ends in that type and id; `#id`
+is found in `from`'s contained resources. It is nil when the page does not hold the resource, and an
+`*Error` of `KindNotSent` when two entries could be the one meant, or the resource is not of the
+type you named. `fhir.Resource` as the type takes any type. A list parameter such as `Include`
+takes one value as a list of one.
+
+## Slots and schedules
+
+A Slot search answers a FHIR Bundle whose matches are `Slot`s; each Slot's `Schedule`, and the
+`Location` and provider the Schedule names, come in the same Bundle when the search asks for them
+with `_include`. `SearchSlotWithIncludes` sends every include the Slot search serves, and
+`SlotViews` hands you each matched Slot with what the page holds for it, side by side, each the FHIR
+resource the API served:
+
+```go
+page, err := client.SearchSlotWithIncludes(ctx, haau3.SearchSlotWithIncludesParams{LocationAddressState: new("MA"), Count: new(10)})
+if err != nil {
+	return err
+}
+views, err := haau3.SlotViews(page)
+if err != nil {
+	return err
+}
+for _, view := range views {
+	book := view.BookingLink
+	if book == "" {
+		book = view.BookingPhone
+	}
+	fmt.Println(*view.Slot.Start, len(view.Practitioners), len(view.Locations), book)
+}
+```
+
+| Field | What it holds |
+|---|---|
+| `Slot` | The matched `Slot`. |
+| `Schedule` | Its `Schedule`. Every Slot names one. |
+| `Locations` | Every `Location` the Schedule reaches: its Location actors, then the Locations of each `HealthcareService` it names. |
+| `PractitionerRoles` | The `PractitionerRole`s the Schedule names. |
+| `Practitioners` | The `Practitioner`s it names, then the Practitioner behind each role. |
+| `HealthcareServices` | The `HealthcareService`s it names. |
+| `BookingLink` | The Slot's booking link, from its `booking-deep-link` extension, or `""`. |
+| `BookingPhone` | The number to book it by, from its `booking-phone` extension, or `""`. |
+| `PatientType` | Whom it accepts, from its `patient-type` extension, as one of HL7's four codes: `AcceptingNewPatients` (`newpt`), `AcceptingExistingPatients` (`existptonly`), `AcceptingExistingPatientsAndFamilies` (`existptfam`) or `NotAcceptingPatients` (`nopt`, which the API never serves), or `""`. |
+| `Virtual` | `true` when a Location's physical type is `vi`, and `false` otherwise: a Location is physical unless it says it is virtual, and a place that is both is two Locations. |
+
+Each list keeps the order the Schedule names them in, holds each resource once, and is empty when
+there is none: a Schedule may name a Location and no provider. The resources are the page's own,
+each a pointer. The three extensions are read under SMART Scheduling Links 1.0.0's own URLs; the
+Slot itself keeps whatever its publisher sent. Nothing is fetched and nothing is replaced in place.
+A resource the page does not hold is left out, and so is one of another type than the reference's
+element allows; a contained resource is found in the entry that contains it, as FHIR says. `Resolve`
+finds anything else a reference names. A view marshals to JSON with the field names the TypeScript
+SDK's view has: `slot`, `schedule`, `locations` and so on.
+
+`SlotViews` returns an `*Error` of `KindNotSent` in two cases. A Slot names a Schedule the page does
+not hold, which happens when the page was searched without its includes, so the message says to
+search with `SearchSlotWithIncludes`. Or, as `Resolve` does, two entries could each be the one a
+reference names.
+
+The helper takes `SearchSlotWithIncludesParams`: every parameter `SearchSlot` takes but the
+includes, so a value that holds one does not compile, and it sends nothing else, so the API's
+defaults hold: free Slots, from now. To send your own includes, call `SearchSlot`. A page's `next`
+link is followed with `Pages`, and `SlotViews` reads each page.
+
+`SearchScheduleWithIncludes` and `ScheduleViews` do the same for the Schedule search: each matched
+Schedule with its `Locations`, `PractitionerRoles`, `Practitioners`, `HealthcareServices` and
+`Virtual`.
 
 ## Reading a Parameters answer
 
