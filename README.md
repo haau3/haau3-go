@@ -74,7 +74,19 @@ slot := struct {
 	BookingLink  string  `json:"bookingLink,omitempty"`
 }{Start: view.Slot.Start, BookingLink: view.BookingLink}
 if len(view.Practitioners) > 0 && len(view.Practitioners[0].Name) > 0 {
-	slot.Practitioner = view.Practitioners[0].Name[0].Text
+	// A name's text, or its given and family names when the publisher sent no text.
+	name := view.Practitioners[0].Name[0]
+	parts := append([]string{}, name.Given...)
+	if name.Family != nil {
+		parts = append(parts, *name.Family)
+	}
+	joined := strings.TrimSpace(strings.Join(parts, " "))
+	switch {
+	case name.Text != nil:
+		slot.Practitioner = name.Text
+	case joined != "":
+		slot.Practitioner = &joined
+	}
 }
 if len(view.Locations) > 0 {
 	slot.Location = view.Locations[0].Name
@@ -403,6 +415,45 @@ for page, err := range client.Pages(ctx, first) {
 	}
 }
 ```
+
+When the next page is asked for in a later request, as a web page's "Load more" does, there is no
+page to hand `Pages`. `NextCursor` reads the cursor from a page's `next` link, with no request, and
+a search takes it back as `Page`:
+
+```go
+// The search, its moment chosen once and kept: the cursor belongs to it.
+params := haau3.SearchSlotWithIncludesParams{
+	Status:               new("free"),
+	Start:                []string{"ge" + time.Now().UTC().Format(time.RFC3339)},
+	LocationAddressState: new("TX"),
+}
+first, err := client.SearchSlotWithIncludes(ctx, params)
+if err != nil {
+	return err
+}
+cursor, err := haau3.NextCursor(first) // "" on the last page
+if err != nil {
+	return err
+}
+
+// Later, in another request, with the same search:
+if cursor != "" {
+	params.Page = &cursor
+	second, err := client.SearchSlotWithIncludes(ctx, params)
+	if err != nil {
+		return err
+	}
+	fmt.Println(len(second.Entry))
+}
+```
+
+A cursor belongs to its search: send it with every other parameter exactly as before. A Slot,
+Schedule or plan search refuses a cursor sent with its search changed (a `400`), and that includes a
+parameter the API fills in for you, as the page's `self` link shows: for a Slot search, send `Status`
+and `Start` yourself when you will page this way, since their defaults are free Slots from the moment
+of the first request. A cursor does not last: the provider directory's searches say their cursors
+expire, and a plan search answers `410` once the plans are updated, so start the search again.
+`NextCursor` returns an error when a next link is not a URL, or carries no cursor or two.
 
 `Resources` gives every resource the search found, across every page:
 

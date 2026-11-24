@@ -157,7 +157,19 @@ func firstCallLines(o operation) ([]string, error) {
 		"\tBookingLink  string  `json:\"bookingLink,omitempty\"`",
 		"}{Start: view.Slot.Start, BookingLink: view.BookingLink}",
 		"if len(view.Practitioners) > 0 && len(view.Practitioners[0].Name) > 0 {",
-		"\tslot.Practitioner = view.Practitioners[0].Name[0].Text",
+		"\t// A name's text, or its given and family names when the publisher sent no text.",
+		"\tname := view.Practitioners[0].Name[0]",
+		"\tparts := append([]string{}, name.Given...)",
+		"\tif name.Family != nil {",
+		"\t\tparts = append(parts, *name.Family)",
+		"\t}",
+		"\tjoined := strings.TrimSpace(strings.Join(parts, \" \"))",
+		"\tswitch {",
+		"\tcase name.Text != nil:",
+		"\t\tslot.Practitioner = name.Text",
+		"\tcase joined != \"\":",
+		"\t\tslot.Practitioner = &joined",
+		"\t}",
 		"}",
 		"if len(view.Locations) > 0 {", "\tslot.Location = view.Locations[0].Name", "}",
 		"out := json.NewEncoder(os.Stdout)",
@@ -215,7 +227,7 @@ func goSample(s *spec, hl7 *fhirSchema, o operation) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		imports = append(imports, "encoding/json", "os")
+		imports = append(imports, "encoding/json", "os", "strings")
 		body = lines
 	case "fhirBatch":
 		lines, err := batchSample(s, o)

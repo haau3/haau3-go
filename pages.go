@@ -2,7 +2,9 @@ package haau3
 
 import (
 	"context"
+	"fmt"
 	"iter"
+	"net/url"
 
 	"github.com/haau3/haau3-go/fhir"
 )
@@ -83,6 +85,56 @@ func (c *Client) Resources(ctx context.Context, first *fhir.Bundle, opts ...Opti
 			}
 		}
 	}
+}
+
+// NextCursor is the cursor for the page after this one, with no request: the `page` value of the
+// page's `next` link, or "" on the last page. It is for a search continued in a later request, such
+// as a web page's "Load more", where Pages cannot hold the page between requests.
+//
+//	// The search, its moment chosen once and kept: the cursor belongs to it.
+//	params := haau3.SearchSlotWithIncludesParams{
+//		Status: new("free"),
+//		Start:  []string{"ge" + time.Now().UTC().Format(time.RFC3339)},
+//	}
+//	first, err := client.SearchSlotWithIncludes(ctx, params)
+//	cursor, err := haau3.NextCursor(first) // "" on the last page
+//	// Later, in another request, with the same search:
+//	if cursor != "" {
+//		params.Page = &cursor
+//		second, err := client.SearchSlotWithIncludes(ctx, params)
+//	}
+//
+// A cursor belongs to its search: send it as Page with every other parameter exactly as before. A
+// Slot, Schedule or plan search refuses a cursor sent with its search changed (a 400), and that
+// includes a parameter the API filled in for you, as the page's `self` link shows: send a Slot
+// search's Status and Start yourself when you will page this way. A cursor does not last: the
+// provider directory's searches say their cursors expire, and a plan search answers 410 once the
+// plans are updated, so start the search again. Pages follows the link itself.
+//
+// It returns an error when the next link is not a URL, or carries no cursor or two: reading any of
+// those as the last page would end a caller's paging with no error.
+func NextCursor(page *fhir.Bundle) (string, error) {
+	link := nextLink(page)
+	// No next link: this is the last page.
+	if link == "" {
+		return "", nil
+	}
+	parsed, err := url.Parse(link)
+	if err != nil {
+		return "", notSent("The page's next link is not a URL, so it names no next page.")
+	}
+	query, err := url.ParseQuery(parsed.RawQuery)
+	if err != nil {
+		return "", notSent("The page's next link is not a URL, so it names no next page.")
+	}
+	cursors := query["page"]
+	if len(cursors) > 1 {
+		return "", notSent(fmt.Sprintf("The page's next link carries %d page cursors, so which one continues the search is ambiguous.", len(cursors)))
+	}
+	if len(cursors) == 0 || cursors[0] == "" {
+		return "", notSent("The page's next link carries no page cursor, so the next page is reached only by following the link, as Pages does.")
+	}
+	return cursors[0], nil
 }
 
 func nextLink(page *fhir.Bundle) string {
