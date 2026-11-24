@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.3](https://github.com/haau3/haau3-go/compare/v0.4.2...v0.4.3) (2026-11-24)
+
+
+### Features
+
+* EscapeSearchValue escapes a value a person typed for a FHIR search ([#78](https://github.com/haau3/haau3-go/issues/78)) ([96cb5e8](https://github.com/haau3/haau3-go/commit/96cb5e8fab0aab6f1848fd1a33e853a61f95c851))
+
 ## [0.4.2](https://github.com/haau3/haau3-go/compare/v0.4.1...v0.4.2) (2026-11-24)
 
 
