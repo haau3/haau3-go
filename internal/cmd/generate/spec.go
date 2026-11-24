@@ -62,8 +62,8 @@ type operation struct {
 	Headers     []header // its optional header parameters, each sent with an option of its own
 	Body        string   // the Go type of the body: `*fhir.Parameters`, `fhir.Resource`, or ""
 	BodyTypes   []string // the resource types a body may be
-	Answer      string   // the Go type of the answer: `*fhir.InsurancePlan`, `*SearchSlotsResponse`, `fhir.Resource`
-	Expects     []string // the FHIR resource types a 200 may be; empty for Scheduling's answers
+	Answer      string   // the Go type of the answer: `*fhir.InsurancePlan`, `*fhir.Bundle`, `fhir.Resource`
+	Expects     []string // the FHIR resource types a 200 may be; empty for an answer of the spec's own components
 	Batchable   bool
 	Refused     bool            // the spec marks it x-haau3-batchable: false
 	KeyComment  string          // what its sample's client line says HAAU3_API_KEY holds

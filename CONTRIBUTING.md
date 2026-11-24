@@ -26,7 +26,7 @@ FHIR R4 (4.0.1), pinned by its sha256. Never edit them by hand:
 
 - `operations_gen.go`: one method per operation, each operation's params struct, and each entry of
   a batch;
-- `types_gen.go`: the API's own components, such as Scheduling's records and `Problem`;
+- `types_gen.go`: the API's own components outside FHIR, when the spec declares any;
 - `fhir/r4_gen.go`: every FHIR R4 type;
 - `operations_gen_test.go`: each operation called with the spec's own example;
 - `api.md`;

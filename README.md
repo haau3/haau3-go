@@ -2,7 +2,8 @@
 
 The Go SDK for the [haau3 platform API](https://docs.haau3.com), as typed calls:
 
-- **Scheduling:** open appointment slots from many SMART Scheduling Links publishers, in one search.
+- **Scheduling:** open appointment slots from many SMART Scheduling Links publishers, in one FHIR
+  search, each `Slot` with its `Schedule`, `Location` and provider.
 - **Medical Benefits:** Medicare Advantage and ACA Marketplace plans as FHIR `InsurancePlan`,
   searchable by state or county, and which providers are in a plan's network.
 - **MedList:** one reconciled medication list from one patient's FHIR medication records.
@@ -49,16 +50,27 @@ goroutines at once.
 ## A first call
 
 ```go
-// Open appointment slots, here in Cambridge.
-found, err := client.SearchSlots(ctx, haau3.SearchSlotsParams{City: new("Cambridge"), State: new("MA"), Limit: new(1)})
+// Open appointment slots of one provider, found by NPI.
+bundle, err := client.SearchSlot(ctx, haau3.SearchSlotParams{
+	ProviderIdentifier: new("http://hl7.org/fhir/sid/us-npi|2900000227"),
+	Include:            []string{"Slot:schedule"},
+	IncludeIterate:     []string{"Schedule:actor", "PractitionerRole:practitioner", "HealthcareService:location"},
+	Count:              new(1),
+})
 if err != nil {
 	return err
 }
-if len(found.Slots) == 0 {
+var slots []*fhir.Slot
+for _, entry := range bundle.Entry {
+	if slot, ok := entry.Resource.(*fhir.Slot); ok {
+		slots = append(slots, slot)
+	}
+}
+if len(slots) == 0 {
 	fmt.Println("No open slots matched.")
 	return nil
 }
-slot, err := json.MarshalIndent(found.Slots[0], "", "  ")
+slot, err := json.MarshalIndent(slots[0], "", "  ")
 if err != nil {
 	return err
 }
@@ -67,17 +79,16 @@ fmt.Println(string(slot))
 
 Every method takes a `context.Context` first, and its deadline or cancellation bounds the whole
 call, retries included. FHIR answers are typed with FHIR R4 from HL7's own schema, in the
-[`fhir`](https://pkg.go.dev/github.com/haau3/haau3-go/fhir) package; the other services' answers
-with the API's own types, in this package. FHIR elements are optional, so each is a pointer, nil
-when absent, or a slice. A decimal keeps the digits it was written with, as a `json.Number`.
-Scheduling's times are `time.Time`, and a time you send goes out with seconds and its own offset,
-as the API requires. FHIR's own dates stay strings, since FHIR allows a partial date such as `2024`.
+[`fhir`](https://pkg.go.dev/github.com/haau3/haau3-go/fhir) package. FHIR elements are optional,
+so each is a pointer, nil when absent, or a slice. A decimal keeps the digits it was written with,
+as a `json.Number`. FHIR's dates and times stay strings, since FHIR allows a partial date such as
+`2024`.
 
 ## One call per service
 
 ```go
-// Scheduling: open appointment slots, here in Boston.
-found, err := client.SearchSlots(ctx, haau3.SearchSlotsParams{City: new("Boston"), State: new("MA"), Limit: new(10)})
+// Scheduling: open appointment slots in a state, as a FHIR Bundle of Slots.
+slots, err := client.SearchSlot(ctx, haau3.SearchSlotParams{LocationAddressState: new("MA"), Count: new(10)})
 
 // Provider directory: a practitioner by NPI, from CMS's National Provider Directory.
 practitioners, err := client.SearchPractitioner(ctx, haau3.SearchPractitionerParams{Identifier: new("1093209884")})
@@ -202,7 +213,7 @@ Each method takes options too, for that call only, as do `Batch`, `Pages`, `Reso
 `Request`. Two are for a call only: `WithCorrelationID` and `WithResponseInfo`.
 
 ```go
-slots, err := client.SearchSlots(ctx, haau3.SearchSlotsParams{State: new("MA")},
+slots, err := client.SearchSlot(ctx, haau3.SearchSlotParams{LocationAddressState: new("MA")},
 	haau3.WithTimeout(10*time.Second), haau3.WithMaxRetries(0))
 ```
 
@@ -254,7 +265,7 @@ if errors.As(err, &e) {
 	case haau3.KindRefused:
 		fmt.Println(e.Status)    // 400, 404, 410 and so on
 		fmt.Println(e.Code)      // why, when the API names it: "not-the-example" from the Sandbox
-		fmt.Println(e.Outcome()) // the OperationOutcome; Scheduling's errors carry e.Problem()
+		fmt.Println(e.Outcome()) // the OperationOutcome the API answered with
 	case haau3.KindNoAnswer:
 		fmt.Println(e.Reason)     // timeout, network, rate-limited, unavailable, server-error or unreadable
 		fmt.Println(e.RetryAfter) // when the API said
@@ -396,7 +407,7 @@ for resource, err := range client.Resources(ctx, first) {
 
 It gives each entry whose search mode is `match`, or says none. A resource an `_include` or
 `_revinclude` brought, and a search's own `OperationOutcome`, are not among them; `Pages` gives
-every entry. Scheduling's searches page with `Limit` and `Offset`, and answer with a `Total`.
+every entry.
 
 ## Reading a Parameters answer
 
@@ -553,7 +564,7 @@ value. A `{name}` with no value, or a value with no `{name}`, is refused before 
 with its headers, request id, attempts and duration:
 
 ```go
-raw, err := client.Request(ctx, haau3.RawRequest{Method: "GET", Path: "/v1/scheduling/publishers"})
+raw, err := client.Request(ctx, haau3.RawRequest{Method: "GET", Path: "/v1/fhir/r4/metadata"})
 if err != nil {
 	return err
 }

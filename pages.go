@@ -18,8 +18,6 @@ import (
 //		}
 //		for _, entry := range page.Entry { ... }
 //	}
-//
-// Scheduling's searches page with Limit and Offset instead, and answer with a Total.
 func (c *Client) Pages(ctx context.Context, first *fhir.Bundle, opts ...Option) iter.Seq2[*fhir.Bundle, error] {
 	return func(yield func(*fhir.Bundle, error) bool) {
 		s, err := c.settingsFor("GET (the next page)", opts)

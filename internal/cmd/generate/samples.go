@@ -127,32 +127,30 @@ func emitSamples(s *spec, hl7 *fhirSchema) ([]byte, error) {
 }
 
 // firstCall is the operation a quickstart makes its first call with.
-const firstCall = "searchSlots"
+const firstCall = "searchSlot"
 
-// firstCallLines are the first call's body: the slot search's example, which names a city, with the
-// first slot it found printed whole as indented JSON, since one field says nothing of what a slot
-// is (and fmt would print its pointers). A search that finds nothing says so, rather than panicking.
+// firstCallLines are the first call's body: the slot search's example, with the first Slot it found
+// printed whole as indented JSON, since one field says nothing of what a slot is (and fmt would print
+// its pointers). The Bundle also holds what its includes add, so the Slots are the entries that are
+// one. A search that finds nothing says so, rather than panicking.
 func firstCallLines(o operation) ([]string, error) {
-	var city any
-	for _, p := range o.Query {
-		if p.Wire == "city" {
-			city = p.Example
-		}
-	}
-	name, ok := city.(string)
-	if !ok {
-		return nil, fmt.Errorf("the first call's example names no city")
+	if len(o.Query) == 0 {
+		return nil, fmt.Errorf("the first call's example sends no query parameters")
 	}
 	fields, err := paramFields(o)
 	if err != nil {
 		return nil, err
 	}
 	return []string{
-		fmt.Sprintf("// Open appointment slots, here in %s.", name),
-		fmt.Sprintf("found, err := client.%s(ctx, haau3.%s{%s})", o.Name, o.ParamsType(), strings.Join(fields, ", ")),
+		"// Open appointment slots of one provider, found by NPI.",
+		fmt.Sprintf("bundle, err := client.%s(ctx, haau3.%s{%s})", o.Name, o.ParamsType(), strings.Join(fields, ", ")),
 		"if err != nil {", "\tlog.Fatal(err)", "}",
-		"if len(found.Slots) == 0 {", "\tfmt.Println(\"No open slots matched.\")", "\treturn", "}",
-		`slot, err := json.MarshalIndent(found.Slots[0], "", "  ")`,
+		"var slots []*fhir.Slot",
+		"for _, entry := range bundle.Entry {",
+		"\tif slot, ok := entry.Resource.(*fhir.Slot); ok {", "\t\tslots = append(slots, slot)", "\t}",
+		"}",
+		"if len(slots) == 0 {", "\tfmt.Println(\"No open slots matched.\")", "\treturn", "}",
+		`slot, err := json.MarshalIndent(slots[0], "", "  ")`,
 		"if err != nil {", "\tlog.Fatal(err)", "}",
 		"fmt.Println(string(slot))",
 	}, nil
@@ -170,6 +168,7 @@ func goSample(s *spec, hl7 *fhirSchema, o operation) (string, error) {
 			return "", err
 		}
 		imports = append(imports, "encoding/json")
+		module = append(module, `"github.com/haau3/haau3-go/fhir"`)
 		body = lines
 	case "fhirBatch":
 		lines, err := batchSample(s, o)
