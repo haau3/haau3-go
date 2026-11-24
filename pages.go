@@ -74,7 +74,7 @@ func (c *Client) Resources(ctx context.Context, first *fhir.Bundle, opts ...Opti
 				return
 			}
 			for _, entry := range page.Entry {
-				if entry.Resource == nil || (entry.Search != nil && entry.Search.Mode != nil && *entry.Search.Mode != "match") {
+				if !isMatch(entry) {
 					continue
 				}
 				if !yield(entry.Resource, nil) {

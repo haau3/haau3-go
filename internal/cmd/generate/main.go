@@ -44,6 +44,9 @@ func outputs(root string) (map[string][]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := checkHelpers(s); err != nil {
+		return nil, err
+	}
 	zipped, err := os.ReadFile(filepath.Join(root, "hl7", "fhir.schema.json.zip"))
 	if err != nil {
 		return nil, err

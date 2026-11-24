@@ -130,7 +130,12 @@ func emitOperations(s *spec) string {
 	}) {
 		regexpImport = "\t\"regexp\"\n"
 	}
-	b.WriteString(generatedHeader + "package haau3\n\nimport (\n\t\"context\"\n" + regexpImport + timeImport + "\n\t\"github.com/haau3/haau3-go/fhir\"\n)\n\n")
+	slicesImport, includesImport := "", ""
+	if slices.ContainsFunc(s.Operations, hasHelper) {
+		slicesImport, includesImport = "\t\"slices\"\n", "\t\"github.com/haau3/haau3-go/internal/includes\"\n"
+	}
+	b.WriteString(generatedHeader + "package haau3\n\nimport (\n\t\"context\"\n" + regexpImport + slicesImport + timeImport +
+		"\n\t\"github.com/haau3/haau3-go/fhir\"\n" + includesImport + ")\n\n")
 	fmt.Fprintf(&b, "// SpecVersion is the version of the API's spec this release was generated from.\nconst SpecVersion = %q\n\n", s.Version)
 
 	b.WriteString("// Each operation of the spec: its method, its path and what its answer may be.\nvar (\n")
@@ -168,24 +173,7 @@ func emitOperations(s *spec) string {
 			continue
 		}
 		fmt.Fprintf(&b, "// %s holds %s's query parameters. A nil field is not sent.\ntype %s struct {\n", o.ParamsType(), o.Name, o.ParamsType())
-		for i, p := range o.Query {
-			if i > 0 {
-				b.WriteString("\n")
-			}
-			doc := fmt.Sprintf("%s is `%s`", p.Name, p.Wire)
-			if p.Required {
-				doc += ", required"
-			}
-			doc += "."
-			if p.Description != "" {
-				doc += " " + p.Description
-			}
-			if len(p.Enum) > 0 {
-				doc += " One of: " + strings.Join(p.Enum, ", ") + "."
-			}
-			comment(&b, "\t", doc)
-			fmt.Fprintf(&b, "\t%s %s\n", p.Name, fieldType(p.Kind, p.Required))
-		}
+		emitFields(&b, o.Query)
 		b.WriteString("}\n\n")
 		fmt.Fprintf(&b, "func (p %s) query() (query, error) {\n\tvar q query\n", o.ParamsType())
 		for _, p := range o.Query {
@@ -201,6 +189,9 @@ func emitOperations(s *spec) string {
 			}
 		}
 		b.WriteString("\treturn q, nil\n}\n\n")
+		if hasHelper(o) {
+			emitHelperParams(&b, o)
+		}
 	}
 
 	for _, o := range s.Operations {

@@ -15,7 +15,7 @@ import (
 
 // The Sandbox, on a test key or with no key at all. Runs only with HAAU3_LIVE_TEST=1, with a test
 // key in HAAU3_API_KEY or none. With no key the Sandbox allows a few requests an hour from one
-// address, so these are three calls.
+// address, so these are four calls.
 func TestLiveSandbox(t *testing.T) {
 	key := os.Getenv("HAAU3_API_KEY")
 	if os.Getenv("HAAU3_LIVE_TEST") != "1" || (key != "" && keyMode(key) != "test") {
@@ -55,6 +55,24 @@ func TestLiveSandbox(t *testing.T) {
 	if text, _ := json.Marshal(checked); !strings.Contains(string(text), `"type":"message"`) {
 		t.Fatalf("the pharmacy benefit check answered %s", text)
 	}
+	// The first call: the Slot search's example through its helper, which is the request the Sandbox
+	// answers, and its one Slot's view.
+	page, err := client.SearchSlotWithIncludes(ctx, SearchSlotWithIncludesParams{
+		ProviderIdentifier: new("http://hl7.org/fhir/sid/us-npi|2900000227"), Count: new(1),
+	})
+	if err != nil {
+		t.Fatalf("the slot search with its includes: %v", err)
+	}
+	views, err := SlotViews(page)
+	if err != nil || len(views) != 1 {
+		t.Fatalf("%d slot views: %v", len(views), err)
+	}
+	v := views[0]
+	if len(v.Practitioners) != 1 || deref(v.Practitioners[0].Name[0].Text) != "Dr. Wei Example" ||
+		len(v.Locations) != 1 || deref(v.Locations[0].Name) != "haau3 Cambridge Imaging Center" ||
+		v.BookingLink == "" || v.BookingPhone == "" || v.PatientType != AcceptingExistingPatients || v.Virtual {
+		t.Errorf("the slot's view: %+v", v)
+	}
 }
 
 // The production API, on a real key. Runs only with HAAU3_LIVE_TEST=1 and a key in HAAU3_API_KEY.
@@ -72,10 +90,20 @@ func TestLive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	found, err := client.SearchSlot(ctx, SearchSlotParams{LocationAddressState: new("MA"), Count: new(3)})
-	if err != nil || found.Type == nil || *found.Type != "searchset" {
+	page, err := client.SearchSlotWithIncludes(ctx, SearchSlotWithIncludesParams{LocationAddressState: new("MA"), Count: new(25)})
+	if err != nil {
 		t.Fatalf("slots: %v", err)
 	}
+	views, err := SlotViews(page)
+	if err != nil || len(views) == 0 {
+		t.Fatalf("%d slot views: %v", len(views), err)
+	}
+	for _, v := range views {
+		if v.Schedule == nil || len(v.Locations) == 0 {
+			t.Errorf("slot %s has schedule %v and %d locations", deref(v.Slot.ID), v.Schedule != nil, len(v.Locations))
+		}
+	}
+	t.Logf("%d Massachusetts slots: each with a Schedule and a Location", len(views))
 	plan, err := client.ReadInsurancePlan(ctx, "H2406-013-000")
 	if err != nil || *plan.ID != "H2406-013-000" {
 		t.Fatalf("plan: %v", err)

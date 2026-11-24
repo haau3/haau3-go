@@ -146,7 +146,8 @@ func sentPath(ex specExample) string {
 // The client's methods are exactly the spec's operations and the SDK's own few, so a spec change
 // that adds or removes an operation shows here.
 func TestTheClientSurfaceIsTheSpecsOperations(t *testing.T) {
-	own := []string{"BaseURL", "Batch", "Environment", "Format", "Get", "GoString", "Pages", "Post", "Request", "Resources", "String"}
+	own := []string{"BaseURL", "Batch", "Environment", "Format", "Get", "GoString", "Pages", "Post", "Request", "Resources",
+		"SearchScheduleWithIncludes", "SearchSlotWithIncludes", "String"}
 	var want []string
 	for _, ex := range specExamples {
 		want = append(want, ex.name)

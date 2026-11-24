@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+
+	"github.com/haau3/haau3-go/internal/includes"
 )
 
 // bodyFile is where a sample reads a body that nests resources: a Bundle's entries or a Parameters
@@ -70,7 +72,8 @@ const lineWidth = 100
 // emitSamples writes openapi/code-samples.json: an OpenAPI Overlay that adds a Go sample to every
 // operation as `x-codeSamples`, for a documentation site to show beside it. Each sample is a whole
 // program that sends the operation's example request from the spec and prints one field of the
-// answer, except the slot search, a quickstart's first call, which prints the first slot it found.
+// answer, except the slot search, a quickstart's first call, which searches through its helper and
+// prints the first slot's view.
 // Its client line says which key HAAU3_API_KEY must hold, from the operation's security (keyComment).
 // samples_test.go builds and runs every one, as it is written, against a stand-in API.
 func emitSamples(s *spec, hl7 *fhirSchema) ([]byte, error) {
@@ -129,31 +132,76 @@ func emitSamples(s *spec, hl7 *fhirSchema) ([]byte, error) {
 // firstCall is the operation a quickstart makes its first call with.
 const firstCall = "searchSlot"
 
-// firstCallLines are the first call's body: the slot search's example, with the first Slot it found
-// printed whole as indented JSON, since one field says nothing of what a slot is (and fmt would print
-// its pointers). The Bundle also holds what its includes add, so the Slots are the entries that are
-// one. A search that finds nothing says so, rather than panicking.
+// firstCallLines are the first call's body: the Slot search's example through its helper, which sends
+// the includes itself, then the first Slot's view: when it starts, its practitioner's name, its
+// location's name and its booking link, as indented JSON (fmt would print the pointers), each left
+// out when the page has none, a link's & and < as they are. A search that finds nothing says so,
+// rather than panicking.
 func firstCallLines(o operation) ([]string, error) {
-	if len(o.Query) == 0 {
-		return nil, fmt.Errorf("the first call's example sends no query parameters")
-	}
-	fields, err := paramFields(o)
+	fields, err := firstCallFields(o)
 	if err != nil {
 		return nil, err
 	}
 	return []string{
-		"// Open appointment slots of one provider, found by NPI.",
-		fmt.Sprintf("bundle, err := client.%s(ctx, haau3.%s{%s})", o.Name, o.ParamsType(), strings.Join(fields, ", ")),
+		"// Open appointment slots of one provider, found by NPI, each with its schedule, location and provider.",
+		fmt.Sprintf("page, err := client.%sWithIncludes(ctx, haau3.%s{%s})", o.Name, o.helperParamsType(), strings.Join(fields, ", ")),
 		"if err != nil {", "\tlog.Fatal(err)", "}",
-		"var slots []*fhir.Slot",
-		"for _, entry := range bundle.Entry {",
-		"\tif slot, ok := entry.Resource.(*fhir.Slot); ok {", "\t\tslots = append(slots, slot)", "\t}",
+		"views, err := haau3.SlotViews(page)",
+		"if err != nil {", "\tlog.Fatal(err)", "}",
+		"if len(views) == 0 {", "\tfmt.Println(\"No open slots matched.\")", "\treturn", "}",
+		"view := views[0]",
+		"slot := struct {",
+		"\tStart        *string `json:\"start\"`",
+		"\tPractitioner *string `json:\"practitioner,omitempty\"`",
+		"\tLocation     *string `json:\"location,omitempty\"`",
+		"\tBookingLink  string  `json:\"bookingLink,omitempty\"`",
+		"}{Start: view.Slot.Start, BookingLink: view.BookingLink}",
+		"if len(view.Practitioners) > 0 && len(view.Practitioners[0].Name) > 0 {",
+		"\tslot.Practitioner = view.Practitioners[0].Name[0].Text",
 		"}",
-		"if len(slots) == 0 {", "\tfmt.Println(\"No open slots matched.\")", "\treturn", "}",
-		`slot, err := json.MarshalIndent(slots[0], "", "  ")`,
-		"if err != nil {", "\tlog.Fatal(err)", "}",
-		"fmt.Println(string(slot))",
+		"if len(view.Locations) > 0 {", "\tslot.Location = view.Locations[0].Name", "}",
+		"out := json.NewEncoder(os.Stdout)",
+		"out.SetEscapeHTML(false)",
+		`out.SetIndent("", "  ")`,
+		"if err := out.Encode(slot); err != nil {", "\tlog.Fatal(err)", "}",
 	}, nil
+}
+
+// firstCallFields are the first call's parameters: the example's, less the includes its helper sends
+// itself. The example must send exactly those includes, in any order, as one value or a list, or the
+// call the sample makes would not be the example, which is the request the Sandbox answers with no
+// key, so any other set is refused here rather than written into a sample that fails there.
+func firstCallFields(o operation) ([]string, error) {
+	want, ok := includes.ByOperation[o.ID]
+	if !ok {
+		return nil, fmt.Errorf("%s: the first call has no helper that sends its includes", o.ID)
+	}
+	if !slices.ContainsFunc(o.Query, func(p param) bool { return p.Example != nil }) {
+		return nil, fmt.Errorf("%s: the first call's example sends no query parameters", o.ID)
+	}
+	sent := map[string][]string{}
+	rest := o
+	rest.Query = nil
+	for _, p := range o.Query {
+		switch p.Wire {
+		case includeWire, includeIterateWire:
+			if p.Example != nil {
+				sent[p.Wire] = wire(p.Example)
+			}
+		default:
+			rest.Query = append(rest.Query, p)
+		}
+	}
+	for _, w := range []struct {
+		name   string
+		values []string
+	}{{includeWire, want.Include}, {includeIterateWire, want.Iterate}} {
+		got, wanted := slices.Sorted(slices.Values(sent[w.name])), slices.Sorted(slices.Values(w.values))
+		if !slices.Equal(got, wanted) {
+			return nil, fmt.Errorf("%s: the example's %s is not what %sWithIncludes sends, so the first call would not be the example", o.ID, w.name, o.Name)
+		}
+	}
+	return paramFields(rest)
 }
 
 // goSample is one operation's sample, as a whole program, formatted.
@@ -167,8 +215,7 @@ func goSample(s *spec, hl7 *fhirSchema, o operation) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		imports = append(imports, "encoding/json")
-		module = append(module, `"github.com/haau3/haau3-go/fhir"`)
+		imports = append(imports, "encoding/json", "os")
 		body = lines
 	case "fhirBatch":
 		lines, err := batchSample(s, o)
