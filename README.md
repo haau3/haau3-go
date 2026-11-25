@@ -521,7 +521,39 @@ fmt.Println(len(page.Entry))
 
 Unescaped, a comma separates values the API reads as "or", so `Austin, TX` asks for two cities, and a
 trailing comma is refused with a `400`. Never escape a value you built with `,` or `|` on purpose,
-such as a list of codes or a `system|code` token.
+such as a list of codes or a `system|code` token: build a token with `SearchToken`.
+
+## A code to search for
+
+`SearchToken` turns a coding into the value a token search parameter takes, `system|code`, each part
+escaped. An entry of a value set's expansion becomes a `fhir.Coding` with its `System` and `Code`, so a
+code picked from a list goes straight into a search:
+
+```go
+url := "https://fhir.haau3.com/platform/ValueSet/scheduling-service-types"
+filter := "general"
+serviceTypes, err := client.ValueSetExpand(ctx, haau3.ValueSetExpandParams{URL: &url, Filter: &filter})
+if err != nil {
+	return err
+}
+if serviceTypes.Expansion == nil || len(serviceTypes.Expansion.Contains) == 0 {
+	return nil
+}
+chosen := serviceTypes.Expansion.Contains[0]
+token, err := haau3.SearchToken(fhir.Coding{System: chosen.System, Code: chosen.Code})
+if err != nil {
+	return err
+}
+page, err := client.SearchSlotWithIncludes(ctx, haau3.SearchSlotWithIncludesParams{ScheduleServiceType: &token})
+if err != nil {
+	return err
+}
+fmt.Println(len(page.Entry))
+```
+
+Given several codings, `SearchToken(a, b)` is any of them: their tokens joined by commas. Each needs
+both a system and a code, or it returns an error of `KindNotSent`, since a token without its system
+matches the code in every system. For a code in any system, send `EscapeSearchValue(code)`.
 
 ## Slots and schedules
 
