@@ -12,7 +12,7 @@ import (
 )
 
 // SpecVersion is the version of the API's spec this release was generated from.
-const SpecVersion = "1.0.0-preview.40"
+const SpecVersion = "1.0.0-preview.41"
 
 // Each operation of the spec: its method, its path and what its answer may be.
 var (
@@ -1280,7 +1280,12 @@ type ValueSetExpandParams struct {
 	// (its drug products: clinical and branded drugs and packs). The ICD-10-CM value sets are
 	// `https://haau3.com/fhir/ValueSet/icd-10-cm` (every code of the release it serves, headers
 	// included) and `https://haau3.com/fhir/ValueSet/icd-10-cm-valid-for-submission` (the codes valid
-	// for submission for HIPAA-covered transactions, so no header).
+	// for submission for HIPAA-covered transactions, so no header). The scheduling value sets are
+	// `https://fhir.haau3.com/platform/ValueSet/scheduling-service-types` (every service type on the
+	// Slots and Schedules the scheduling service serves now) and
+	// `https://fhir.haau3.com/platform/ValueSet/scheduling-specialties` (every specialty on them and
+	// on the practitioner roles and services that provide them), each code in its publisher's own code
+	// system, as sent.
 	URL *string
 
 	// Filter is `filter`. Text to narrow the expansion: each word must be the start of a word in a
@@ -1333,13 +1338,20 @@ func (p ValueSetExpandParams) query() (query, error) {
 // ValueSetValidateCodeParams holds ValueSetValidateCode's query parameters. A nil field is not sent.
 type ValueSetValidateCodeParams struct {
 	// URL is `url`. Canonical URL of the value set to validate against. Defaults to the implicit
-	// all-LOINC value set (`http://loinc.org?fhir_vs`), which is every LOINC code.
+	// all-LOINC value set (`http://loinc.org?fhir_vs`), which is every LOINC code. The scheduling
+	// value sets are `https://fhir.haau3.com/platform/ValueSet/scheduling-service-types` (every
+	// service type on the Slots and Schedules the scheduling service serves now) and
+	// `https://fhir.haau3.com/platform/ValueSet/scheduling-specialties` (every specialty on them and
+	// on the practitioner roles and services that provide them), each code in its publisher's own code
+	// system, as sent.
 	URL *string
 
 	// Code is `code`, required. The code to validate.
 	Code string
 
-	// System is `system`. Code system URI of the code. Defaults to LOINC (`http://loinc.org`).
+	// System is `system`. Code system URI of the code. Defaults to LOINC (`http://loinc.org`), except
+	// on the scheduling value sets, whose codes come from several code systems: there it is required,
+	// and a request without it is refused with a `400` naming it.
 	System *string
 
 	// Display is `display`. Optional display to check against the code's own display. A mismatch
@@ -2083,6 +2095,10 @@ func (c *Client) StructureDosage(ctx context.Context, body *fhir.Parameters, opt
 // and paging (`count=0` returns the total only). On the value sets of the code systems this service
 // holds (RxNorm and ICD-10-CM), the filter searches by name, and on ICD-10-CM by code too, and is
 // required, and the matches come ranked, best first, with `expansion.total` the number of matches.
+// The scheduling value sets list the service types and specialties a Slot or Schedule search can be
+// sent, alphabetically by display, every one when `count` is not sent; their version changes only
+// when the list does, and a GET's answer carries a weak `ETag` with `Cache-Control: private,
+// max-age=300`.
 //
 // GET /v1/fhir/r4/ValueSet/$expand (valueSetExpand):
 // https://docs.haau3.com/api-reference/terminology/expand-a-value-set
@@ -2097,6 +2113,10 @@ func (c *Client) ValueSetExpand(ctx context.Context, params ValueSetExpandParams
 // and paging (`count=0` returns the total only). On the value sets of the code systems this service
 // holds (RxNorm and ICD-10-CM), the filter searches by name, and on ICD-10-CM by code too, and is
 // required, and the matches come ranked, best first, with `expansion.total` the number of matches.
+// The scheduling value sets list the service types and specialties a Slot or Schedule search can be
+// sent, alphabetically by display, every one when `count` is not sent; their version changes only
+// when the list does, and a GET's answer carries a weak `ETag` with `Cache-Control: private,
+// max-age=300`.
 //
 // POST /v1/fhir/r4/ValueSet/$expand (valueSetExpandPost):
 // https://docs.haau3.com/api-reference/terminology/expand-a-value-set-1
@@ -2109,7 +2129,9 @@ func (c *Client) ValueSetExpandPost(ctx context.Context, body *fhir.Parameters, 
 // FHIR `ValueSet/$validate-code`. A code that is not in the set is a successful `200` with `result:
 // false`, not an error. On POST, a `coding` or `codeableConcept` parameter may stand in for
 // `system` + `code`; a codeableConcept validates if any of its codings is in the set, which helps
-// when an element carries a vendor-local coding alongside a standard one.
+// when an element carries a vendor-local coding alongside a standard one. On the scheduling value
+// sets `system` is required, any display a feed sent for the code is accepted, and a GET's answer
+// carries a weak `ETag` with `Cache-Control: private, max-age=300`.
 //
 // GET /v1/fhir/r4/ValueSet/$validate-code (valueSetValidateCode):
 // https://docs.haau3.com/api-reference/terminology/validate-a-code-against-a-value-set
@@ -2123,7 +2145,9 @@ func (c *Client) ValueSetValidateCode(ctx context.Context, params ValueSetValida
 // FHIR `ValueSet/$validate-code`. A code that is not in the set is a successful `200` with `result:
 // false`, not an error. On POST, a `coding` or `codeableConcept` parameter may stand in for
 // `system` + `code`; a codeableConcept validates if any of its codings is in the set, which helps
-// when an element carries a vendor-local coding alongside a standard one.
+// when an element carries a vendor-local coding alongside a standard one. On the scheduling value
+// sets `system` is required, any display a feed sent for the code is accepted, and a GET's answer
+// carries a weak `ETag` with `Cache-Control: private, max-age=300`.
 //
 // POST /v1/fhir/r4/ValueSet/$validate-code (valueSetValidateCodePost):
 // https://docs.haau3.com/api-reference/terminology/validate-a-code-against-a-value-set-1
