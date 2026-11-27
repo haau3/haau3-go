@@ -479,6 +479,7 @@ page, err := client.SearchHealthcareService(ctx, haau3.SearchHealthcareServicePa
 	ServiceCategory:           new("pharm"),
 	LocationAddressState:      new("FL"),
 	LocationAddressPostalcode: new("33131"),
+	Active:                    new(true),
 	Include:                   []string{"HealthcareService:organization", "HealthcareService:location"},
 })
 if err != nil {

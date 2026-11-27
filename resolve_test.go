@@ -36,10 +36,10 @@ func entryAt(fullURL string, resource fhir.Resource, mode string) fhir.BundleEnt
 func pharmacyPage() (page *fhir.Bundle, service *fhir.HealthcareService, organization *fhir.Organization, store *fhir.Location) {
 	service = &fhir.HealthcareService{
 		ID: new("HealthcareService-pharmacy-1234567893"), Name: new("EXAMPLE PHARMACY"),
-		ProvidedBy: ref("Organization/Organization-1234567893"),
+		ProvidedBy: ref("Organization/Organization-pharmacy-1234567893"),
 		Location:   []fhir.Reference{*ref("Location/Location-pharmacy-1234567893")},
 	}
-	organization = &fhir.Organization{ID: new("Organization-1234567893"), Name: new("EXAMPLE PHARMACY")}
+	organization = &fhir.Organization{ID: new("Organization-pharmacy-1234567893"), Name: new("EXAMPLE PHARMACY")}
 	store = &fhir.Location{ID: new("Location-pharmacy-1234567893"), Address: &fhir.Address{City: new("MIAMI")}}
 	page = &fhir.Bundle{Type: new("searchset"), Entry: []fhir.BundleEntry{
 		entryAt(apiFHIRBase+"/HealthcareService/"+*service.ID, service, "match"),
@@ -96,7 +96,7 @@ func TestResolveFindsWhatARelativeReferenceNamesAtTheAddressOfTheEntryHoldingIt(
 
 func TestResolveFindsItWithoutFromAsTheOneEntryWhoseAddressEndsInThatTypeAndID(t *testing.T) {
 	page, _, organization, _ := pharmacyPage()
-	if got, err := Resolve[*fhir.Organization](page, ref("Organization/Organization-1234567893"), nil); err != nil || got != organization {
+	if got, err := Resolve[*fhir.Organization](page, ref("Organization/Organization-pharmacy-1234567893"), nil); err != nil || got != organization {
 		t.Errorf("%v %v", got, err)
 	}
 	// The control: an id the page does not hold.
@@ -137,7 +137,7 @@ func TestResolveMatchesAnAbsoluteReferenceToTheEntryWithThatFullURLAURNUUIDAmong
 
 func TestResolveGivesARelativeReferenceNoMeaningFromAnEntryAtAURNUUIDAsFHIRSays(t *testing.T) {
 	page, _, organization, _ := pharmacyPage()
-	holder := &fhir.Claim{Provider: ref("Organization/Organization-1234567893")}
+	holder := &fhir.Claim{Provider: ref("Organization/Organization-pharmacy-1234567893")}
 	page.Entry = append(page.Entry, entryAt("urn:uuid:1a2b3c4d-0000-4000-8000-000000000002", holder, ""))
 	if got, err := Resolve[fhir.Resource](page, holder.Provider, holder); err != nil || got != nil {
 		t.Errorf("from an entry at a urn:uuid: %v %v", got, err)
@@ -336,7 +336,7 @@ func TestResolveNeverNamesTheReferenceInAnErrorSoAMessageIsSafeToLog(t *testing.
 	page.Entry = append(page.Entry, entryAt("https://fhir.example.org/r4/Organization/"+*organization.ID, &fhir.Organization{ID: organization.ID}, ""))
 	_, ambiguous := Resolve[fhir.Resource](page, service.ProvidedBy, nil)
 	_, wrongType := Resolve[*fhir.Location](page, service.ProvidedBy, service)
-	_, noFrom := Resolve[fhir.Resource](page, ref("#Organization-1234567893"), nil)
+	_, noFrom := Resolve[fhir.Resource](page, ref("#Organization-pharmacy-1234567893"), nil)
 	_, notAnEntry := Resolve[fhir.Resource](page, service.ProvidedBy, &fhir.HealthcareService{})
 	for _, err := range []error{ambiguous, wrongType, noFrom, notAnEntry} {
 		if err == nil {
