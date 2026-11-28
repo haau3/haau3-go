@@ -2,7 +2,7 @@
   "overlay": "1.2.0",
   "info": {
     "title": "Go samples for every operation of the haau3 platform API",
-    "version": "1.0.0-preview.41"
+    "version": "1.0.0-preview.44"
   },
   "extends": "https://api.haau3.com/openapi.json",
   "actions": [
@@ -277,7 +277,7 @@
           {
             "lang": "go",
             "label": "Go",
-            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tbundle, err := client.SearchHealthcareService(ctx, haau3.SearchHealthcareServiceParams{ServiceCategory: new(\"pharm\"), LocationAddressState: new(\"FL\"), LocationAddressPostalcode: new(\"33131\"), Count: new(2)})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(len(bundle.Entry))\n}\n"
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tbundle, err := client.SearchHealthcareService(ctx, haau3.SearchHealthcareServiceParams{ServiceCategory: new(\"pharm\"), LocationAddressState: new(\"FL\"), LocationAddressPostalcode: new(\"33131\"), Active: new(true), Include: []string{\"HealthcareService:organization\", \"HealthcareService:location\"}})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfmt.Println(len(bundle.Entry))\n}\n"
           }
         ]
       }
@@ -409,7 +409,7 @@
           {
             "lang": "go",
             "label": "Go",
-            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tparameters, err := client.CheckInsurancePlanNetwork(ctx, \"H3359-038-000\", haau3.CheckInsurancePlanNetworkParams{NPI: []string{\"1518929058\", \"1992700001\"}})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfor _, parameter := range parameters.Parameter {\n\t\tif parameter.Name != nil {\n\t\t\tfmt.Println(*parameter.Name)\n\t\t}\n\t}\n}\n"
+            "source": "package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\t\"log\"\n\n\t\"github.com/haau3/haau3-go\"\n)\n\nfunc main() {\n\tctx := context.Background()\n\tclient, err := haau3.NewClient() // reads HAAU3_API_KEY\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tparameters, err := client.CheckInsurancePlanNetwork(ctx, \"H3359-038-000\", haau3.CheckInsurancePlanNetworkParams{NPI: []string{\"1518929058\", \"1992700001\"}, Pharmacy: []string{\"1922102680\"}})\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\tfor _, parameter := range parameters.Parameter {\n\t\tif parameter.Name != nil {\n\t\t\tfmt.Println(*parameter.Name)\n\t\t}\n\t}\n}\n"
           }
         ]
       }
